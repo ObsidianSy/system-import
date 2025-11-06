@@ -115,6 +115,9 @@ importers:
       axios:
         specifier: ^1.12.0
         version: 1.12.2
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -133,6 +136,9 @@ importers:
       dotenv:
         specifier: ^17.2.2
         version: 17.2.3
+      drizzle-orm:
+        specifier: ^0.44.6
+        version: 0.44.6(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.4.1)(mysql2@3.15.1)(postgres@3.4.7)
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.0)
@@ -160,6 +166,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.7
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -242,9 +251,6 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.21(postcss@8.5.6)
-      bcryptjs:
-        specifier: ^3.0.3
-        version: 3.0.3
       better-sqlite3:
         specifier: ^12.4.1
         version: 12.4.1
@@ -254,9 +260,6 @@ importers:
       drizzle-kit:
         specifier: ^0.31.4
         version: 0.31.5
-      drizzle-orm:
-        specifier: ^0.44.6
-        version: 0.44.6(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.4.1)(mysql2@3.15.1)(postgres@3.4.7)
       esbuild:
         specifier: ^0.25.0
         version: 0.25.10
@@ -266,9 +269,6 @@ importers:
       postcss:
         specifier: ^8.4.47
         version: 8.5.6
-      postgres:
-        specifier: ^3.4.7
-        version: 3.4.7
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
