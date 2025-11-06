@@ -35,13 +35,12 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/client/dist ./client/dist
 
-# Copy necessary files
-COPY server ./server
-COPY shared ./shared
-COPY drizzle.config.ts ./
-COPY create-admin.ts ./
+# Copy necessary runtime files
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/drizzle.config.ts ./
+COPY --from=builder /app/create-admin.ts ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

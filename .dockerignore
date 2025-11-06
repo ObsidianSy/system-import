@@ -2,10 +2,9 @@
 node_modules
 .pnpm-store
 
-# Build outputs
-dist
-build
-*.dist
+# Build outputs (don't exclude dist, needed for Docker)
+# dist
+# build
 
 # Environment files
 .env
@@ -36,11 +35,6 @@ coverage
 .git
 .gitignore
 .gitattributes
-
-# Documentation
-README.md
-*.md
-docs
 
 # Temporary files
 tmp
