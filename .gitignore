@@ -105,3 +105,10 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Test files
+test-*.ts
+check-*.ts
+debug-*.ts
+*.test.backup
+*.bak

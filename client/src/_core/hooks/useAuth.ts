@@ -45,15 +45,12 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
-    try {
-      if (meQuery.data) {
-        localStorage.setItem(
-          "manus-runtime-user-info",
-          JSON.stringify(meQuery.data)
-        );
+    if (meQuery.data) {
+      try {
+        localStorage.setItem("manus-runtime-user-info", JSON.stringify(meQuery.data));
+      } catch {
+        // Ignore localStorage errors
       }
-    } catch (error) {
-      console.warn("Failed to save user info to localStorage:", error);
     }
     return {
       user: meQuery.data ?? null,

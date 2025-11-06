@@ -23,11 +23,10 @@ export async function createContext(
 
   // Auto-login em desenvolvimento (exceto na rota de login)
   const isLoginRoute = opts.req.url?.includes("/auth.login") || opts.req.url?.includes("/auth.logout");
+  
   if (!user && !isLoginRoute && process.env.DEV_AUTO_LOGIN === "true" && process.env.NODE_ENV === "development") {
     const devEmail = process.env.DEV_USER_EMAIL;
     if (devEmail) {
-      console.log("[Dev Mode] Auto-login habilitado para:", devEmail);
-      // Buscar usuário pelo email
       const db = await import("../db").then(m => m.getDb());
       if (db) {
         const { users } = await import("../../drizzle/schema");
@@ -35,7 +34,6 @@ export async function createContext(
         const result = await db.select().from(users).where(eq(users.email, devEmail)).limit(1);
         if (result.length > 0) {
           user = result[0];
-          console.log("[Dev Mode] Usuário encontrado:", user.email);
         }
       }
     }

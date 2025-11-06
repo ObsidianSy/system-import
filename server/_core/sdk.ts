@@ -257,9 +257,25 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
+    
+    if (sessionCookie) {
+      // Try to verify as JWT first (custom authentication)
+      try {
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const { payload } = await jwtVerify(sessionCookie, secret);
+        
+        if (payload.userId && typeof payload.userId === 'string') {
+          const user = await db.getUser(payload.userId);
+          if (user) return user;
+        }
+      } catch {
+        // If JWT fails, try OAuth flow below
+      }
+    }
+
+    // Fallback to OAuth authentication flow
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
@@ -277,7 +293,7 @@ class SDKServer {
         await db.upsertUser({
           id: userInfo.openId,
           name: userInfo.name || null,
-          email: userInfo.email ?? null,
+          email: userInfo.email || "",
           loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
           lastSignedIn: signedInAt,
         });
@@ -294,6 +310,7 @@ class SDKServer {
 
     await db.upsertUser({
       id: user.id,
+      email: user.email,
       lastSignedIn: signedInAt,
     });
 

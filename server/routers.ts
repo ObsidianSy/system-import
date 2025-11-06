@@ -10,20 +10,9 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
 
-// Helper to generate IDs
-function generateId() {
-  return randomBytes(16).toString("hex");
-}
-
-// Helper to convert cents to decimal for display
-function centsToDecimal(cents: number): number {
-  return cents / 100;
-}
-
-// Helper to convert decimal to cents for storage
-function decimalToCents(decimal: number): number {
-  return Math.round(decimal * 100);
-}
+const generateId = () => randomBytes(16).toString("hex");
+const centsToDecimal = (cents: number) => cents / 100;
+const decimalToCents = (decimal: number) => Math.round(decimal * 100);
 
 export const appRouter = router({
   system: systemRouter,
