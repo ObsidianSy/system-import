@@ -6,7 +6,11 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+// Note: we avoid a static import of `./vite` because that module
+// imports `vite` at top-level (dev-only). In ESM static imports are
+// resolved during module linking, causing runtime failures in
+// production where `vite` is not installed. We dynamically import the
+// dev helper only when running in development.
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -45,9 +49,32 @@ async function startServer() {
   );
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
+    const mod = await import("./vite");
+    if (mod.setupVite) {
+      await mod.setupVite(app, server);
+    }
   } else {
-    serveStatic(app);
+    // Inline lightweight static-serving implementation to avoid
+    // importing the dev-only `./vite` module (which imports `vite`).
+    // This mirrors the behavior of `serveStatic` from `vite.ts`.
+    const fs = await import("fs");
+    const path = await import("path");
+
+    const distPath =
+      process.env.NODE_ENV === "development"
+        ? path.resolve(import.meta.dirname, "..", "..", "dist", "public")
+        : path.resolve(import.meta.dirname, "public");
+
+    if (!fs.existsSync(distPath)) {
+      console.error(`Could not find the build directory: ${distPath}, make sure to build the client first`);
+    }
+
+    app.use((await import("express")).default.static(distPath));
+
+    // fall through to index.html if the file doesn't exist
+    app.use("*", (_req, res) => {
+      res.sendFile(path.resolve(distPath, "index.html"));
+    });
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
