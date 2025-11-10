@@ -60,16 +60,44 @@ async function startServer() {
     const fs = await import("fs");
     const path = await import("path");
 
+    // Determine the correct path to built client assets.
+    // In development we point to the vite build output under /dist/public (if someone builds manually),
+    // but normally dev mode is handled earlier via the dynamic Vite middleware.
+    // In production the folder layout after build & copy is:
+    //   dist/
+    //     public/            <-- client build output (index.html, assets/*)
+    //     server/_core/index.js (this file)
+    // So from this file's directory (dist/server/_core) we need to go up two levels and into public.
     const distPath =
       process.env.NODE_ENV === "development"
         ? path.resolve(import.meta.dirname, "..", "..", "dist", "public")
-        : path.resolve(import.meta.dirname, "public");
+        : path.resolve(import.meta.dirname, "..", "..", "public");
 
-    if (!fs.existsSync(distPath)) {
-      console.error(`Could not find the build directory: ${distPath}, make sure to build the client first`);
+  const preferredPort = parseInt(process.env.PORT || "3000");
+
+  if (!fs.existsSync(distPath)) {
+      console.error(
+        `[Static] Could not find client build directory: ${distPath}. ` +
+          `If running in production ensure 'vite build' ran and dist/public was copied. ` +
+          `Serving a minimal fallback page.`
+      );
+      app.get("*", (_req, res) => {
+        res
+          .status(200)
+          .setHeader("Content-Type", "text/html; charset=utf-8")
+          .end(
+            "<html><head><title>Import Manager</title></head><body><h1>Import Manager API</h1><p>Client build not found.</p></body></html>"
+          );
+      });
+      // find available port (in case of conflict)
+      const port = await findAvailablePort(preferredPort);
+      server.listen(port, () => {
+        console.log(`Server running (no static) on http://localhost:${port}/`);
+      });
+      return; // Skip static middleware setup
     }
 
-    app.use((await import("express")).default.static(distPath));
+  app.use((await import("express")).default.static(distPath));
 
     // fall through to index.html if the file doesn't exist
     app.use("*", (_req, res) => {
@@ -77,7 +105,7 @@ async function startServer() {
     });
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const preferredPort = parseInt(process.env.PORT || "3000"); // re-defined for dev branch above
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
