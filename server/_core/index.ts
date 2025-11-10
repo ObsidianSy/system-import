@@ -44,7 +44,7 @@ async function startServer() {
     const distPath = path.resolve(import.meta.dirname, "..", "..", "public");
     const port = parseInt(process.env.PORT || "3000");
 
-  if (!fs.existsSync(distPath)) {
+    if (!fs.existsSync(distPath)) {
       console.error(
         `[Static] Could not find client build directory: ${distPath}. ` +
           `If running in production ensure 'vite build' ran and dist/public was copied. ` +
@@ -64,19 +64,17 @@ async function startServer() {
       return; // Skip static middleware setup
     }
 
-  app.use((await import("express")).default.static(distPath));
+    app.use((await import("express")).default.static(distPath));
 
     // fall through to index.html if the file doesn't exist
     app.use("*", (_req, res) => {
       res.sendFile(path.resolve(distPath, "index.html"));
     });
+
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${port}/`);
+    });
   }
-
-  const port = parseInt(process.env.PORT || "3000");
-
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${port}/`);
-  });
 }
 
 startServer().catch(console.error);
