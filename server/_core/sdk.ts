@@ -59,23 +59,30 @@ class SDKServer {
 
   async authenticateRequest(req: Request): Promise<User | null> {
     const cookieHeader = req.headers.cookie;
+    console.log(`[SDK] Cookie header present:`, !!cookieHeader);
+    
     if (!cookieHeader) {
       return null;
     }
 
     const cookies = parseCookieHeader(cookieHeader);
     const sessionToken = cookies[COOKIE_NAME];
+    
+    console.log(`[SDK] Session token found:`, !!sessionToken);
 
     if (!sessionToken) {
       return null;
     }
 
     const payload = await this.verifySessionToken(sessionToken);
+    console.log(`[SDK] Token verified:`, !!payload);
+    
     if (!payload) {
       return null;
     }
 
     const user = await db.getUser(payload.userId);
+    console.log(`[SDK] User loaded:`, !!user);
     return user ?? null;
   }
 

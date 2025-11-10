@@ -64,6 +64,7 @@ export const appRouter = router({
           const cookieOptions = getSessionCookieOptions(ctx.req);
           ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
           
+          console.log(`[Auth] Cookie set: ${COOKIE_NAME}, options:`, cookieOptions);
           console.log(`[Auth] Login successful for user: ${user.email}`);
           
           return {

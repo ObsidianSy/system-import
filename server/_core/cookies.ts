@@ -23,7 +23,7 @@ function isSecureRequest(req: Request) {
 
 export function getSessionCookieOptions(
   req: Request
-): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
+): CookieOptions {
   const hostname = req.hostname;
   const secure = isSecureRequest(req);
 
@@ -32,7 +32,8 @@ export function getSessionCookieOptions(
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "lax", // Changed from conditional to always lax for better compatibility
+    sameSite: "lax",
     secure: secure,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   };
 }
