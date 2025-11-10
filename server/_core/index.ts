@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
-import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -11,25 +10,6 @@ import { createContext } from "./context";
 // resolved during module linking, causing runtime failures in
 // production where `vite` is not installed. We dynamically import the
 // dev helper only when running in development.
-
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
-    });
-    server.on("error", () => resolve(false));
-  });
-}
-
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
-  }
-  throw new Error(`No available port found starting from ${startPort}`);
-}
 
 async function startServer() {
   const app = express();
@@ -64,8 +44,7 @@ async function startServer() {
     // In production Docker: /app/dist/public (client) and /app/dist/server/_core/index.js (this file)
     // From /app/dist/server/_core we go up 2 levels to /app/dist, then into public
     const distPath = path.resolve(import.meta.dirname, "..", "..", "public");
-
-  const preferredPort = parseInt(process.env.PORT || "3000");
+    const port = parseInt(process.env.PORT || "3000");
 
   if (!fs.existsSync(distPath)) {
       console.error(
@@ -81,10 +60,8 @@ async function startServer() {
             "<html><head><title>Import Manager</title></head><body><h1>Import Manager API</h1><p>Client build not found.</p></body></html>"
           );
       });
-      // find available port (in case of conflict)
-      const port = await findAvailablePort(preferredPort);
-      server.listen(port, () => {
-        console.log(`Server running (no static) on http://localhost:${port}/`);
+      server.listen(port, "0.0.0.0", () => {
+        console.log(`Server running (no static) on http://0.0.0.0:${port}/`);
       });
       return; // Skip static middleware setup
     }
@@ -97,15 +74,10 @@ async function startServer() {
     });
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000"); // re-defined for dev branch above
-  const port = await findAvailablePort(preferredPort);
+  const port = parseInt(process.env.PORT || "3000");
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${port}/`);
   });
 }
 
