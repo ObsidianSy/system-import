@@ -39,6 +39,8 @@ class SDKServer {
       const secret = new TextEncoder().encode(ENV.cookieSecret);
       const { payload } = await jwtVerify(token, secret);
 
+      console.log(`[SDK] JWT payload:`, payload);
+
       if (
         typeof payload.userId === 'string' &&
         typeof payload.email === 'string' &&
@@ -51,8 +53,10 @@ class SDKServer {
         };
       }
 
+      console.log(`[SDK] Invalid payload structure - userId, email or name missing`);
       return null;
     } catch (error) {
+      console.error(`[SDK] Token verification error:`, error);
       return null;
     }
   }

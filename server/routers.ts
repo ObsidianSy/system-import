@@ -54,7 +54,11 @@ export const appRouter = router({
           
           // Criar JWT token
           const secret = new TextEncoder().encode(ENV.cookieSecret);
-          const token = await new SignJWT({ userId: user.id })
+          const token = await new SignJWT({ 
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+          })
             .setProtectedHeader({ alg: "HS256" })
             .setIssuedAt()
             .setExpirationTime("7d")
