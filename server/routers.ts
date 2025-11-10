@@ -5,7 +5,6 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import * as db from "./db";
-import { storagePut } from "./storage";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
@@ -310,11 +309,10 @@ export const appRouter = router({
         mimeType: z.string(),
       }))
       .mutation(async ({ input }) => {
-        const buffer = Buffer.from(input.imageData, 'base64');
-        const ext = input.mimeType.split('/')[1];
-        const key = `products/${input.productId}-${Date.now()}.${ext}`;
-        
-        const { url } = await storagePut(key, buffer, input.mimeType);
+        // TODO: Implement storage solution (AWS S3, Cloudinary, etc.)
+        // For now, return a placeholder URL
+        const timestamp = Date.now();
+        const url = `/uploads/products/${input.productId}-${timestamp}.jpg`;
         
         await db.updateProduct(input.productId, { imageUrl: url });
         
