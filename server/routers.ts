@@ -25,46 +25,60 @@ export const appRouter = router({
         password: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const user = await db.getUserByEmail(input.email);
-        
-        if (!user || !user.password) {
-          throw new Error("Credenciais inválidas");
+        try {
+          console.log(`[Auth] Login attempt for email: ${input.email}`);
+          
+          const user = await db.getUserByEmail(input.email);
+          console.log(`[Auth] User found:`, !!user);
+          
+          if (!user || !user.password) {
+            console.log(`[Auth] Login failed: Invalid credentials`);
+            throw new Error("Credenciais inválidas");
+          }
+          
+          if (!user.isActive) {
+            console.log(`[Auth] Login failed: User inactive`);
+            throw new Error("Usuário inativo");
+          }
+          
+          const validPassword = await bcrypt.compare(input.password, user.password);
+          console.log(`[Auth] Password valid:`, validPassword);
+          
+          if (!validPassword) {
+            console.log(`[Auth] Login failed: Invalid password`);
+            throw new Error("Credenciais inválidas");
+          }
+          
+          // Atualizar último login
+          await db.updateUser(user.id, { lastSignedIn: new Date() });
+          
+          // Criar JWT token
+          const secret = new TextEncoder().encode(ENV.cookieSecret);
+          const token = await new SignJWT({ userId: user.id })
+            .setProtectedHeader({ alg: "HS256" })
+            .setIssuedAt()
+            .setExpirationTime("7d")
+            .sign(secret);
+          
+          // Definir cookie
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
+          
+          console.log(`[Auth] Login successful for user: ${user.email}`);
+          
+          return {
+            success: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+            },
+          };
+        } catch (error) {
+          console.error(`[Auth] Login error:`, error);
+          throw error;
         }
-        
-        if (!user.isActive) {
-          throw new Error("Usuário inativo");
-        }
-        
-        const validPassword = await bcrypt.compare(input.password, user.password);
-        
-        if (!validPassword) {
-          throw new Error("Credenciais inválidas");
-        }
-        
-        // Atualizar último login
-        await db.updateUser(user.id, { lastSignedIn: new Date() });
-        
-        // Criar JWT token
-        const secret = new TextEncoder().encode(ENV.cookieSecret);
-        const token = await new SignJWT({ userId: user.id })
-          .setProtectedHeader({ alg: "HS256" })
-          .setIssuedAt()
-          .setExpirationTime("7d")
-          .sign(secret);
-        
-        // Definir cookie
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
-        
-        return {
-          success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-          },
-        };
       }),
     
     logout: publicProcedure.mutation(({ ctx }) => {

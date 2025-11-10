@@ -53,6 +53,9 @@ async function startServer() {
   );
   
   console.log('🌐 Configuring static files...');
+  
+  const port = parseInt(process.env.PORT || "3000");
+  
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     console.log('🔨 Development mode: loading Vite...');
@@ -61,6 +64,12 @@ async function startServer() {
       await mod.setupVite(app, server);
     }
     console.log('✅ Vite setup complete');
+    
+    console.log(`🎯 Starting development server on port ${port}...`);
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`✅ Server running on http://localhost:${port}/`);
+      console.log(`✅ Server is ready and accepting connections`);
+    });
   } else {
     console.log('📁 Production mode: serving static files...');
     // Inline lightweight static-serving implementation to avoid
@@ -73,7 +82,6 @@ async function startServer() {
     // In production Docker: /app/dist/public (client) and /app/dist/server/_core/index.js (this file)
     // From /app/dist/server/_core we go up 2 levels to /app/dist, then into public
     const distPath = path.resolve(import.meta.dirname, "..", "..", "public");
-    const port = parseInt(process.env.PORT || "3000");
 
     console.log(`📂 Looking for static files at: ${distPath}`);
 
