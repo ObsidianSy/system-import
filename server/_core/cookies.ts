@@ -25,14 +25,14 @@ export function getSessionCookieOptions(
   req: Request
 ): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
   const hostname = req.hostname;
-  const isLocal = LOCAL_HOSTS.has(hostname) || hostname === "localhost";
   const secure = isSecureRequest(req);
+
+  console.log(`[Cookie] Setting cookie options for hostname: ${hostname}, secure: ${secure}`);
 
   return {
     httpOnly: true,
     path: "/",
-    // Use 'lax' for localhost, 'none' for production with HTTPS
-    sameSite: isLocal ? "lax" : (secure ? "none" : "lax"),
+    sameSite: "lax", // Changed from conditional to always lax for better compatibility
     secure: secure,
   };
 }
