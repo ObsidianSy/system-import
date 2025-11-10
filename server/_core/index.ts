@@ -61,17 +61,9 @@ async function startServer() {
     const path = await import("path");
 
     // Determine the correct path to built client assets.
-    // In development we point to the vite build output under /dist/public (if someone builds manually),
-    // but normally dev mode is handled earlier via the dynamic Vite middleware.
-    // In production the folder layout after build & copy is:
-    //   dist/
-    //     public/            <-- client build output (index.html, assets/*)
-    //     server/_core/index.js (this file)
-    // So from this file's directory (dist/server/_core) we need to go up two levels and into public.
-    const distPath =
-      process.env.NODE_ENV === "development"
-        ? path.resolve(import.meta.dirname, "..", "..", "dist", "public")
-        : path.resolve(import.meta.dirname, "..", "..", "public");
+    // In production Docker: /app/dist/public (client) and /app/dist/server/_core/index.js (this file)
+    // From /app/dist/server/_core we go up 2 levels to /app/dist, then into public
+    const distPath = path.resolve(import.meta.dirname, "..", "..", "public");
 
   const preferredPort = parseInt(process.env.PORT || "3000");
 
