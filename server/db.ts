@@ -258,7 +258,7 @@ export async function listProducts(): Promise<Product[]> {
   const db = await getDb();
   if (!db) return [];
 
-  return db.select().from(products).orderBy(desc(products.createdAt));
+  return db.select().from(products).orderBy(products.sku);
 }
 
 export async function getProductBySku(sku: string): Promise<Product | undefined> {

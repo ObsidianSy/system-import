@@ -170,3 +170,32 @@
     }
   }
 }
+
+/* Print styles */
+@media print {
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+  
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide everything except gallery */
+  nav, header, footer, .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Optimize grid for print */
+  .grid {
+    break-inside: avoid;
+  }
+  
+  /* Ensure cards don't break across pages */
+  .group {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
