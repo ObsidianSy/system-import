@@ -72,108 +72,144 @@ export default function ImportarExcel() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
+      console.log('========== INÍCIO DO PARSING ==========');
+      console.log('Total de linhas:', jsonData.length);
+
       // Tentar extrair dados da fatura
       const parsed: ParsedData = {
         products: []
       };
 
-      let subtotal = 0;
-      let freight = 0;
-      let totalInvoice = 0;
-      let foundSubtotal = false; // Flag para parar de processar produtos
-
       // Procurar por campos conhecidos
       for (let i = 0; i < jsonData.length; i++) {
         const row = jsonData[i];
+        if (!row || row.length === 0) continue;
+
         const firstCell = row[0]?.toString().toLowerCase() || '';
+        const wholeLine = row.join(' ').toLowerCase();
         
-        // Tentar encontrar número da fatura
-        if (firstCell.includes('invoice') && !firstCell.includes('total')) {
+        console.log(`Linha ${i}:`, row);
+
+        // Número da fatura
+        if (firstCell.includes('invoice') && !wholeLine.includes('total')) {
           parsed.invoiceNumber = row[1]?.toString();
+          console.log('→ Invoice Number:', parsed.invoiceNumber);
         }
 
-        // Tentar encontrar data
+        // Data
         if (firstCell.includes('date')) {
           parsed.importDate = row[1]?.toString();
+          console.log('→ Date:', parsed.importDate);
         }
 
-        // Tentar encontrar método de envio
+        // Método de envio
         if (firstCell.includes('shipping')) {
           parsed.shippingMethod = row[1]?.toString();
+          console.log('→ Shipping:', parsed.shippingMethod);
         }
 
-        // Procurar SUBTOTAL (marca o fim da lista de produtos)
-        if (firstCell.includes('subtotal')) {
-          foundSubtotal = true;
-          const value = parseFloat(row[row.length - 1]?.toString().replace(/[^0-9.]/g, '') || '0');
-          if (value > 0) {
-            subtotal = value;
-            console.log('✓ Subtotal encontrado:', value);
+        // SUBTOTAL - buscar valor explicitamente
+        if (wholeLine.includes('subtotal')) {
+          for (let j = 0; j < row.length; j++) {
+            const cellValue = row[j];
+            if (typeof cellValue === 'number' && cellValue > 0) {
+              // Usar o valor numérico da linha SUBTOTAL
+              console.log('→ SUBTOTAL encontrado:', cellValue);
+              break;
+            }
           }
         }
 
-        // Procurar FREIGHT COST / FRETE
-        if (firstCell.includes('freight') || firstCell.includes('freigth') || firstCell.includes('frete')) {
-          const value = parseFloat(row[row.length - 1]?.toString().replace(/[^0-9.]/g, '') || '0');
-          if (value > 0) {
-            freight = value;
-            parsed.freightUSD = value;
-            console.log('✓ Frete encontrado:', value);
+        // FREIGHT - buscar valor explicitamente
+        if (wholeLine.includes('freight') || wholeLine.includes('freigth') || wholeLine.includes('frete')) {
+          for (let j = 0; j < row.length; j++) {
+            const cellValue = row[j];
+            if (typeof cellValue === 'number' && cellValue > 0) {
+              parsed.freightUSD = cellValue;
+              console.log('→ FREIGHT encontrado:', cellValue);
+              break;
+            }
           }
         }
 
-        // Procurar TOTAL INVOICE VALUE
-        if (firstCell.includes('total') && (firstCell.includes('invoice') || firstCell.includes('value'))) {
-          const value = parseFloat(row[row.length - 1]?.toString().replace(/[^0-9.]/g, '') || '0');
-          if (value > 0) {
-            totalInvoice = value;
-            console.log('✓ Total da fatura encontrado:', value);
+        // TOTAL INVOICE VALUE - buscar valor explicitamente
+        if (wholeLine.includes('total') && (wholeLine.includes('invoice') || wholeLine.includes('value'))) {
+          for (let j = 0; j < row.length; j++) {
+            const cellValue = row[j];
+            if (typeof cellValue === 'number' && cellValue > 0) {
+              console.log('→ TOTAL INVOICE encontrado:', cellValue);
+              break;
+            }
           }
         }
 
-        // Processar produtos APENAS se ainda não encontrou o subtotal
-        if (!foundSubtotal && typeof row[0] === 'number' && row[0] > 0) {
-          // Verificar se a segunda coluna tem texto (nome do produto)
-          const hasProductName = row[1] && typeof row[1] === 'string' && row[1].trim().length > 0;
+        // Produtos: linha começa com número (QTY)
+        if (typeof row[0] === 'number' && row[0] > 0 && row[0] < 1000) {
+          // Verificar se NÃO é uma linha de total/subtotal/freight
+          const isNotTotal = !wholeLine.includes('subtotal') && 
+                            !wholeLine.includes('freight') && 
+                            !wholeLine.includes('freigth') &&
+                            !wholeLine.includes('frete') &&
+                            !wholeLine.includes('total');
           
-          if (hasProductName) {
-            const product: ParsedProduct = {
-              quantity: row[0],
-              name: row[1].toString(),
-              unitPriceUSD: 0,
-            };
+          if (isNotTotal) {
+            console.log('→ Analisando linha produto:', row);
+            
+            // Nome do produto: coluna 1 (REF) ou coluna 2 (DESCRIPTION)
+            let productName = '';
+            if (row[1] && typeof row[1] === 'string' && row[1].trim().length > 0) {
+              productName = row[1].toString().trim();
+            } else if (row[2] && typeof row[2] === 'string' && row[2].trim().length > 0) {
+              productName = row[2].toString().trim();
+            }
+            
+            // Só processar se tiver nome
+            if (productName.length > 0) {
+              const product: ParsedProduct = {
+                quantity: row[0],
+                name: productName,
+                unitPriceUSD: 0,
+              };
 
-            // Tentar extrair descrição (coluna 2)
-            if (row[2]) product.description = row[2].toString();
+              // Descrição (coluna 2 se não foi usada como nome)
+              if (productName === row[1]?.toString().trim() && row[2] && typeof row[2] === 'string') {
+                product.description = row[2].toString().trim();
+              }
 
-            // Procurar o preço unitário (geralmente última coluna com valor numérico)
-            for (let j = row.length - 1; j >= 0; j--) {
-              const cellValue = row[j];
-              if (typeof cellValue === 'number' && cellValue > 0 && cellValue !== row[0]) {
-                product.unitPriceUSD = cellValue;
-                break;
+              // Unit Price está na coluna 10 (penúltima coluna)
+              // Coluna 11 é o TOTAL (qty x unit price)
+              if (typeof row[10] === 'number' && row[10] > 0) {
+                product.unitPriceUSD = row[10];
+                console.log('→ Preço unitário:', row[10], 'USD');
+              }
+
+              if (product.unitPriceUSD > 0) {
+                parsed.products.push(product);
+                console.log('✓ PRODUTO ADICIONADO:', product.name, '| Qtd:', product.quantity, '| Preço Unit:', product.unitPriceUSD, '| Total:', (product.quantity * product.unitPriceUSD).toFixed(2));
+              } else {
+                console.log('✗ Produto descartado (sem preço):', product.name);
               }
             }
-
-            if (product.unitPriceUSD > 0) {
-              parsed.products.push(product);
-              console.log('✓ Produto:', product.name, '- Qtd:', product.quantity, '- Preço:', product.unitPriceUSD);
-            }
           }
         }
       }
 
-      // Se não encontrou frete mas encontrou subtotal e total, calcular frete
-      if (!parsed.freightUSD && subtotal > 0 && totalInvoice > 0) {
-        parsed.freightUSD = totalInvoice - subtotal;
-        console.log('✓ Frete calculado (Total - Subtotal):', parsed.freightUSD);
-      }
+      console.log('========== FIM DO PARSING ==========');
+      console.log('Total de produtos:', parsed.products.length);
+      console.log('Frete:', parsed.freightUSD);
+      
+      // Calcular subtotal para verificar
+      const subtotalCalculado = parsed.products.reduce((sum, p) => {
+        const totalProduto = p.quantity * p.unitPriceUSD;
+        console.log(`  ${p.name}: ${p.quantity} x $${p.unitPriceUSD} = $${totalProduto.toFixed(2)}`);
+        return sum + totalProduto;
+      }, 0);
+      console.log('Subtotal calculado:', subtotalCalculado.toFixed(2));
+      console.log('Lista de produtos:', parsed.products);
 
       // Valores padrão
       if (!parsed.exchangeRate) parsed.exchangeRate = 5.46;
       if (!parsed.freightUSD) parsed.freightUSD = 0;
-
-      console.log('Dados parseados:', parsed);
 
       setParsedData(parsed);
       toast.success(`Arquivo processado! ${parsed.products.length} produtos encontrados.`);
