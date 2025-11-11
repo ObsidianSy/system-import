@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Search, Package, AlertTriangle } from "lucide-react";
+import { Search, Package, AlertTriangle, Printer } from "lucide-react";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -28,6 +28,10 @@ export default function Galeria() {
     }).format(value / 100);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -47,15 +51,21 @@ export default function Galeria() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Galeria de Produtos</h1>
-          <p className="text-muted-foreground">
-            Visualização focada nas imagens dos produtos
-          </p>
+        <div className="flex items-center justify-between print:hidden">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Galeria de Produtos</h1>
+            <p className="text-muted-foreground">
+              Visualização focada nas imagens dos produtos
+            </p>
+          </div>
+          <Button onClick={handlePrint} variant="outline">
+            <Printer className="h-4 w-4 mr-2" />
+            Imprimir
+          </Button>
         </div>
 
         {/* Search */}
-        <div className="relative max-w-md">
+        <div className="relative max-w-md print:hidden">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar produtos..."
@@ -66,15 +76,15 @@ export default function Galeria() {
         </div>
 
         {/* Stats */}
-        <div className="flex gap-4 text-sm text-muted-foreground">
+        <div className="flex gap-4 text-sm text-muted-foreground print:hidden">
           <span>{filteredProducts?.length || 0} produtos encontrados</span>
           <span>•</span>
           <span>{products?.filter(p => p.currentStock > 0).length || 0} em estoque</span>
         </div>
 
-        {/* Gallery Grid */}
+        {/* Gallery Grid - 8 colunas */}
         {filteredProducts && filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 print:gap-2">
             {filteredProducts.map((product) => (
               <Card
                 key={product.id}
@@ -150,8 +160,9 @@ export default function Galeria() {
                     )}
                   </div>
 
+                  {/* Custo Médio - oculto na impressão */}
                   {product.averageCostBRL > 0 && (
-                    <div className="pt-2 border-t">
+                    <div className="pt-2 border-t print:hidden">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-muted-foreground">Custo Médio:</span>
                         <span className="font-medium">{formatCurrency(product.averageCostBRL)}</span>
