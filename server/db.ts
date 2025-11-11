@@ -202,6 +202,25 @@ export async function listSuppliers(): Promise<Supplier[]> {
 
 // ========== Products ==========
 
+export async function upsertProduct(product: InsertProduct): Promise<Product> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Try to get existing product
+  const existing = await db.select().from(products).where(eq(products.id, product.id!)).limit(1);
+  
+  if (existing.length > 0) {
+    // Update existing
+    await db.update(products).set({ ...product, updatedAt: new Date() }).where(eq(products.id, product.id!));
+  } else {
+    // Insert new
+    await db.insert(products).values(product);
+  }
+  
+  const result = await db.select().from(products).where(eq(products.id, product.id!)).limit(1);
+  return result[0]!;
+}
+
 export async function createProduct(product: InsertProduct): Promise<Product> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
