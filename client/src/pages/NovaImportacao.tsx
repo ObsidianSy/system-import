@@ -149,9 +149,14 @@ export default function NovaImportacao() {
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find(p => p.id === productId);
     if (product) {
-      updateItem(index, "productId", productId);
-      updateItem(index, "productName", product.name);
-      updateItem(index, "productDescription", product.description || "");
+      const newItems = [...items];
+      newItems[index] = {
+        ...newItems[index],
+        productId: productId,
+        productName: product.name,
+        productDescription: product.description || "",
+      };
+      setItems(newItems);
     }
   };
 
