@@ -80,6 +80,7 @@ export default function ImportarExcel() {
       let subtotal = 0;
       let freight = 0;
       let totalInvoice = 0;
+      let foundSubtotal = false; // Flag para parar de processar produtos
 
       // Procurar por campos conhecidos
       for (let i = 0; i < jsonData.length; i++) {
@@ -101,12 +102,13 @@ export default function ImportarExcel() {
           parsed.shippingMethod = row[1]?.toString();
         }
 
-        // Procurar SUBTOTAL
+        // Procurar SUBTOTAL (marca o fim da lista de produtos)
         if (firstCell.includes('subtotal')) {
+          foundSubtotal = true;
           const value = parseFloat(row[row.length - 1]?.toString().replace(/[^0-9.]/g, '') || '0');
           if (value > 0) {
             subtotal = value;
-            console.log('Subtotal encontrado:', value);
+            console.log('✓ Subtotal encontrado:', value);
           }
         }
 
@@ -116,7 +118,7 @@ export default function ImportarExcel() {
           if (value > 0) {
             freight = value;
             parsed.freightUSD = value;
-            console.log('Frete encontrado:', value);
+            console.log('✓ Frete encontrado:', value);
           }
         }
 
@@ -125,34 +127,38 @@ export default function ImportarExcel() {
           const value = parseFloat(row[row.length - 1]?.toString().replace(/[^0-9.]/g, '') || '0');
           if (value > 0) {
             totalInvoice = value;
-            console.log('Total da fatura encontrado:', value);
+            console.log('✓ Total da fatura encontrado:', value);
           }
         }
 
-        // Tentar encontrar produtos (linhas com quantidade numérica na primeira coluna)
-        if (typeof row[0] === 'number' && row[0] > 0) {
-          // Estrutura típica: QTY | Name | Description | Country | NCM | Weight | Unit Price
-          const product: ParsedProduct = {
-            quantity: row[0],
-            name: row[1]?.toString() || 'Produto sem nome',
-            unitPriceUSD: 0,
-          };
+        // Processar produtos APENAS se ainda não encontrou o subtotal
+        if (!foundSubtotal && typeof row[0] === 'number' && row[0] > 0) {
+          // Verificar se a segunda coluna tem texto (nome do produto)
+          const hasProductName = row[1] && typeof row[1] === 'string' && row[1].trim().length > 0;
+          
+          if (hasProductName) {
+            const product: ParsedProduct = {
+              quantity: row[0],
+              name: row[1].toString(),
+              unitPriceUSD: 0,
+            };
 
-          // Tentar extrair descrição (coluna 2)
-          if (row[2]) product.description = row[2].toString();
+            // Tentar extrair descrição (coluna 2)
+            if (row[2]) product.description = row[2].toString();
 
-          // Procurar o preço unitário (geralmente última coluna com valor numérico)
-          for (let j = row.length - 1; j >= 0; j--) {
-            const cellValue = row[j];
-            if (typeof cellValue === 'number' && cellValue > 0 && cellValue !== row[0]) {
-              product.unitPriceUSD = cellValue;
-              break;
+            // Procurar o preço unitário (geralmente última coluna com valor numérico)
+            for (let j = row.length - 1; j >= 0; j--) {
+              const cellValue = row[j];
+              if (typeof cellValue === 'number' && cellValue > 0 && cellValue !== row[0]) {
+                product.unitPriceUSD = cellValue;
+                break;
+              }
             }
-          }
 
-          if (product.name && product.quantity > 0) {
-            parsed.products.push(product);
-            console.log('Produto encontrado:', product);
+            if (product.unitPriceUSD > 0) {
+              parsed.products.push(product);
+              console.log('✓ Produto:', product.name, '- Qtd:', product.quantity, '- Preço:', product.unitPriceUSD);
+            }
           }
         }
       }
@@ -160,7 +166,7 @@ export default function ImportarExcel() {
       // Se não encontrou frete mas encontrou subtotal e total, calcular frete
       if (!parsed.freightUSD && subtotal > 0 && totalInvoice > 0) {
         parsed.freightUSD = totalInvoice - subtotal;
-        console.log('Frete calculado (Total - Subtotal):', parsed.freightUSD);
+        console.log('✓ Frete calculado (Total - Subtotal):', parsed.freightUSD);
       }
 
       // Valores padrão
