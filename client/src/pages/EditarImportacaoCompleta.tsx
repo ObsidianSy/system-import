@@ -111,6 +111,7 @@ export default function EditarImportacaoCompleta() {
   };
 
   const handleItemChange = (index: number, field: string, value: string) => {
+    console.log('handleItemChange:', { index, field, value, totalItems: items.length });
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
@@ -118,6 +119,7 @@ export default function EditarImportacaoCompleta() {
     if (field === "productId" && value) {
       const product = products?.find(p => p.id === value);
       if (product) {
+        console.log('Produto encontrado:', product);
         newItems[index].productName = product.name;
         newItems[index].supplierProductCode = product.supplierProductCode || "";
       }
@@ -394,7 +396,7 @@ export default function EditarImportacaoCompleta() {
                           <SelectContent>
                             {products?.map((product) => (
                               <SelectItem key={product.id} value={product.id}>
-                                {product.name}
+                                {product.sku || product.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -98,6 +98,7 @@ export default function EditarImportacao() {
   };
 
   const handleLinkProduct = (itemId: string, productId: string) => {
+    console.log('Vinculando produto:', { itemId, productId });
     linkProduct.mutate({ itemId, productId });
   };
 
