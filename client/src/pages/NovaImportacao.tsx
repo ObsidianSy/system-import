@@ -346,7 +346,7 @@ export default function NovaImportacao() {
                             <SelectContent>
                               {products?.map((product) => (
                                 <SelectItem key={product.id} value={product.id}>
-                                  {product.name}
+                                  {product.sku || product.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
