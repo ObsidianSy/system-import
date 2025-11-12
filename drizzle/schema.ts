@@ -145,6 +145,13 @@ export const stockMovements = pgTable("stockMovements", {
   previousStock: integer("previousStock").notNull(),
   newStock: integer("newStock").notNull(),
   
+  // Custo médio antes e depois da movimentação
+  previousAverageCostBRL: integer("previousAverageCostBRL").default(0).notNull(),
+  newAverageCostBRL: integer("newAverageCostBRL").default(0).notNull(),
+  
+  // Custo unitário desta movimentação específica (em BRL, centavos)
+  unitCostBRL: integer("unitCostBRL").default(0).notNull(),
+  
   reference: text("reference"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow(),

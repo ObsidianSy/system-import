@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Package, AlertTriangle, TrendingUp, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -52,13 +53,6 @@ export default function DetalhesProduto() {
   const formatDate = (date: Date | null) => {
     if (!date) return "-";
     return new Date(date).toLocaleString('pt-BR');
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
   };
 
   const movementTypeLabels: Record<string, string> = {
@@ -227,11 +221,21 @@ export default function DetalhesProduto() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Custo Médio</p>
-                    <p className="font-medium">{formatCurrency(product.averageCostBRL / 100)}</p>
+                    <p className="font-medium">{formatCurrency(product.averageCostBRL)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Preço de Venda</p>
-                    <p className="font-medium">{product.salePriceBRL > 0 ? formatCurrency(product.salePriceBRL / 100) : "-"}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {product.salePriceBRL > 0 ? formatCurrency(product.salePriceBRL) : "-"}
+                      </p>
+                      {product.averageCostBRL > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Calculator className="h-3 w-3 mr-1" />
+                          Sugerido: {formatCurrency(calculateSalePrice(product.averageCostBRL))}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -263,7 +267,7 @@ export default function DetalhesProduto() {
         {/* Histórico de Movimentações */}
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de Movimentações</CardTitle>
+            <CardTitle>Histórico de Movimentações e Custos</CardTitle>
           </CardHeader>
           <CardContent>
             {movements && movements.length > 0 ? (
@@ -272,31 +276,58 @@ export default function DetalhesProduto() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Saldo Anterior</TableHead>
-                    <TableHead className="text-right">Saldo Posterior</TableHead>
+                    <TableHead className="text-right">Qtd</TableHead>
+                    <TableHead className="text-right">Estoque Anterior</TableHead>
+                    <TableHead className="text-right">Estoque Novo</TableHead>
+                    <TableHead className="text-right">Custo Unit.</TableHead>
+                    <TableHead className="text-right">Custo Médio Ant.</TableHead>
+                    <TableHead className="text-right">Custo Médio Novo</TableHead>
                     <TableHead>Referência</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {movements.map((movement: any) => (
                     <TableRow key={movement.id}>
-                      <TableCell>{formatDate(movement.createdAt)}</TableCell>
+                      <TableCell className="text-sm">
+                        {formatDate(movement.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           {movementTypeLabels[movement.type] || movement.type}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={movement.quantity > 0 ? "text-green-600" : "text-red-600"}>
+                        <span className={movement.quantity > 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                           {movement.quantity > 0 ? "+" : ""}{movement.quantity}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">{movement.previousStock}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {movement.previousStock}
+                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {movement.newStock}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-right text-sm">
+                        {movement.unitCostBRL ? formatCurrency(movement.unitCostBRL) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {movement.previousAverageCostBRL ? formatCurrency(movement.previousAverageCostBRL) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {movement.newAverageCostBRL ? (
+                          <div className="flex items-center justify-end gap-1">
+                            {formatCurrency(movement.newAverageCostBRL)}
+                            {movement.newAverageCostBRL !== movement.previousAverageCostBRL && (
+                              movement.newAverageCostBRL > movement.previousAverageCostBRL ? (
+                                <TrendingUp className="h-3 w-3 text-red-500" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 text-green-500" />
+                              )
+                            )}
+                          </div>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {movement.reference || "-"}
                       </TableCell>
                     </TableRow>

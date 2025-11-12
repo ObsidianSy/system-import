@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Save, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Upload, Trash2, Calculator } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -259,7 +260,24 @@ export default function EditarProduto() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="salePriceBRL">Preço de Venda (R$)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="salePriceBRL">Preço de Venda (R$)</Label>
+                  {product.averageCostBRL > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const calculatedPrice = calculateSalePrice(product.averageCostBRL);
+                        setSalePriceBRL((calculatedPrice / 100).toFixed(2));
+                        toast.success("Preço calculado: Custo Médio + R$ 5,00");
+                      }}
+                    >
+                      <Calculator className="h-3 w-3 mr-1" />
+                      Calcular Automático
+                    </Button>
+                  )}
+                </div>
                 <Input
                   id="salePriceBRL"
                   type="number"
@@ -269,7 +287,10 @@ export default function EditarProduto() {
                   placeholder="Ex: 150.00"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Preço de venda sugerido (opcional)
+                  {product.averageCostBRL > 0 
+                    ? `Sugestão: ${formatCurrency(calculateSalePrice(product.averageCostBRL))} (Custo + R$ 5,00)`
+                    : "Preço de venda sugerido (opcional)"
+                  }
                 </p>
               </div>
             </div>
@@ -304,12 +325,7 @@ export default function EditarProduto() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Custo Médio:</p>
-                  <p className="font-semibold">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL'
-                    }).format(product.averageCostBRL / 100)}
-                  </p>
+                  <p className="font-semibold">{formatCurrency(product.averageCostBRL)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Última Atualização:</p>

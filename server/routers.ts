@@ -308,9 +308,17 @@ export const appRouter = router({
         currentStock: z.number().optional(),
         minStock: z.number().optional(),
         salePriceBRL: z.number().optional(),
+        averageCostBRL: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
+        
+        // Se o custo médio foi atualizado e o preço de venda não foi especificado,
+        // calcular automaticamente: custo médio + R$ 5,00
+        if (data.averageCostBRL !== undefined && data.salePriceBRL === undefined) {
+          data.salePriceBRL = data.averageCostBRL + 500; // +R$ 5,00 (500 centavos)
+        }
+        
         return db.updateProduct(id, data);
       }),
 
