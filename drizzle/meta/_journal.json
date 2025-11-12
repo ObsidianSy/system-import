@@ -15,6 +15,13 @@
       "when": 1762451055660,
       "tag": "0001_dazzling_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762972125921,
+      "tag": "0002_great_diamondback",
+      "breakpoints": true
     }
   ]
 }

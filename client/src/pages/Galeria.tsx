@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
 import { Search, Package, AlertTriangle, Printer, Settings2 } from "lucide-react";
 import { useState } from "react";
@@ -43,13 +44,6 @@ export default function Galeria() {
     product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value / 100);
-  };
 
   const handlePrint = () => {
     setDialogOpen(false);

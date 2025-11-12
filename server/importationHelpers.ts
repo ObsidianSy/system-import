@@ -47,6 +47,7 @@ export async function processImportationDelivery(importationId: string): Promise
 
     const previousStock = product.currentStock;
     const newStock = previousStock + item.quantity;
+    const previousAverageCost = product.averageCostBRL;
 
     // Calcular custo médio ponderado
     // Fórmula: ((estoque_anterior * custo_médio_anterior) + (quantidade_nova * custo_novo)) / estoque_total
@@ -66,7 +67,7 @@ export async function processImportationDelivery(importationId: string): Promise
       })
       .where(eq(products.id, item.productId));
 
-    // Registrar movimentação de estoque
+    // Registrar movimentação de estoque com histórico de custo médio
     await db.insert(stockMovements).values({
       id: generateId(),
       productId: item.productId,
@@ -75,6 +76,9 @@ export async function processImportationDelivery(importationId: string): Promise
       quantity: item.quantity,
       previousStock,
       newStock,
+      previousAverageCostBRL: previousAverageCost,
+      newAverageCostBRL: averageCostBRL,
+      unitCostBRL: item.unitCostBRL,
       reference: importation.invoiceNumber || `Importação ${importationId}`,
       notes: `Entrada de estoque - Importação ${importation.invoiceNumber || importationId}`,
       createdAt: new Date(),
@@ -111,6 +115,7 @@ export async function revertImportationDelivery(importationId: string): Promise<
     if (!product) continue;
 
     const newStock = product.currentStock - movement.quantity;
+    const previousAverageCost = product.averageCostBRL;
 
     // Recalcular custo médio (voltar ao custo anterior se possível)
     // Nota: Esta é uma simplificação. Em produção, você pode querer armazenar o histórico de custos
@@ -131,6 +136,9 @@ export async function revertImportationDelivery(importationId: string): Promise<
       quantity: -movement.quantity,
       previousStock: product.currentStock,
       newStock: Math.max(0, newStock),
+      previousAverageCostBRL: previousAverageCost,
+      newAverageCostBRL: previousAverageCost, // Mantém o mesmo custo médio na reversão
+      unitCostBRL: 0,
       reference: `Reversão de importação`,
       notes: `Reversão de entrada - Importação ${importationId}`,
       createdAt: new Date(),
