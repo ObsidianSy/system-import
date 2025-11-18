@@ -23,6 +23,7 @@ import EditarImportacaoCompleta from "./pages/EditarImportacaoCompleta";
 import EditarProduto from "./pages/EditarProduto";
 import EditarFornecedor from "./pages/EditarFornecedor";
 import Galeria from "./pages/Galeria";
+import Pedidos from "./pages/Pedidos";
 import Login from "./pages/Login";
 import Usuarios from "./pages/Usuarios";
 
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/fornecedores/:id" component={DetalhesFornecedor} />
       <Route path="/fornecedores/:id/editar" component={EditarFornecedor} />
       <Route path="/galeria" component={Galeria} />
+  <Route path="/pedidos" component={Pedidos} />
       <Route path="/estoque" component={Estoque} />
       <Route path="/relatorios" component={Relatorios} />
       <Route path="/configuracoes" component={Configuracoes} />
