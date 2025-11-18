@@ -132,6 +132,41 @@ export type ImportationItem = typeof importationItems.$inferSelect;
 export type InsertImportationItem = typeof importationItems.$inferInsert;
 
 /**
+ * Orders - temporary store for purchase orders
+ */
+export const orders = pgTable("orders", {
+  id: text("id").primaryKey(),
+  userId: text("userId").notNull(),
+  supplierId: text("supplierId").notNull(),
+  status: text("status", { enum: ["pending", "imported"] }).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export type Order = typeof orders.$inferSelect;
+export type InsertOrder = typeof orders.$inferInsert;
+
+export const orderItems = pgTable("orderItems", {
+  id: text("id").primaryKey(),
+  orderId: text("orderId").notNull(),
+  productId: text("productId"),
+
+  productName: text("productName").notNull(),
+  sku: text("sku"),
+  imageUrl: text("imageUrl"),
+
+  quantity: integer("quantity").notNull(),
+  unitPriceUSD: integer("unitPriceUSD").notNull(),
+  subtotalUSD: integer("subtotalUSD").notNull(),
+
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export type OrderItem = typeof orderItems.$inferSelect;
+export type InsertOrderItem = typeof orderItems.$inferInsert;
+
+/**
  * Stock movements - track all stock changes
  */
 export const stockMovements = pgTable("stockMovements", {

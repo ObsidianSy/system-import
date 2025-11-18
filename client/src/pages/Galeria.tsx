@@ -1,13 +1,16 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
-import { Search, Package, AlertTriangle, Printer, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { Search, Package, AlertTriangle, Printer, Settings2, Filter, X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -17,14 +20,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Galeria() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filtros
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   
   // Configurações de impressão
   const [printConfig, setPrintConfig] = useState({
@@ -38,12 +54,85 @@ export default function Galeria() {
   });
   
   const { data: products, isLoading } = trpc.products.list.useQuery();
+  const utils = trpc.useUtils();
+  const { data: currentOrder } = trpc.orders.current.useQuery();
+  const addItemToOrder = trpc.orders.addItem.useMutation({
+    onSuccess: () => {
+      utils.orders.current.invalidate();
+      toast.success("Produto adicionado ao pedido");
+    },
+  });
 
-  const filteredProducts = products?.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+  // For quick add with price from last import
+  const [addingProduct, setAddingProduct] = useState<any | null>(null);
+  const [addQuantity, setAddQuantity] = useState<number>(1);
+  const [addUnitPriceUSD, setAddUnitPriceUSD] = useState<number>(0);
+  const lastImportPriceQuery = trpc.products.lastImportPrice.useQuery(
+    { productId: addingProduct?.id || '' },
+    { enabled: false }
   );
+
+  // Extrair categorias únicas
+  const categories = useMemo(() => {
+    if (!products) return [];
+    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    return uniqueCategories.sort();
+  }, [products]);
+
+  // Aplicar filtros
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+
+    return products.filter(product => {
+      // Filtro de busca
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = 
+          product.name.toLowerCase().includes(search) ||
+          product.category?.toLowerCase().includes(search) ||
+          product.sku?.toLowerCase().includes(search);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro de categoria
+      if (categoryFilter !== "all" && product.category !== categoryFilter) {
+        return false;
+      }
+
+      // Filtro de estoque
+      if (stockFilter === "low" && product.currentStock > (product.minStock ?? 0)) {
+        return false;
+      }
+      if (stockFilter === "out" && product.currentStock > 0) {
+        return false;
+      }
+      if (stockFilter === "available" && product.currentStock === 0) {
+        return false;
+      }
+
+      // Filtro de preço
+      if (priceMin) {
+        const minPrice = parseFloat(priceMin) * 100;
+        if (product.salePriceBRL < minPrice) return false;
+      }
+      if (priceMax) {
+        const maxPrice = parseFloat(priceMax) * 100;
+        if (product.salePriceBRL > maxPrice) return false;
+      }
+
+      return true;
+    });
+  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setStockFilter("all");
+    setPriceMin("");
+    setPriceMax("");
+  };
+
+  const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || priceMin || priceMax;
 
   const handlePrint = () => {
     setDialogOpen(false);
@@ -352,7 +441,20 @@ export default function Galeria() {
               Visualização focada nas imagens dos produtos
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-2">
+                  {[searchTerm, categoryFilter !== "all", stockFilter !== "all", priceMin, priceMax].filter(Boolean).length}
+                </Badge>
+              )}
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
                 <Printer className="h-4 w-4 mr-2" />
@@ -515,18 +617,94 @@ export default function Galeria() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar produtos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        {/* Painel de Filtros */}
+        {showFilters && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Filtros</CardTitle>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    Limpar Filtros
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search-filter">Buscar</Label>
+                  <Input
+                    id="search-filter"
+                    placeholder="Nome, SKU ou categoria..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Categoria</Label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as categorias</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category!}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stock-filter">Estoque</Label>
+                  <Select value={stockFilter} onValueChange={setStockFilter}>
+                    <SelectTrigger id="stock-filter">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="available">Disponível</SelectItem>
+                      <SelectItem value="low">Estoque Baixo</SelectItem>
+                      <SelectItem value="out">Sem Estoque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Faixa de Preço (R$)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Mín"
+                      value={priceMin}
+                      onChange={(e) => setPriceMin(e.target.value)}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Máx"
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 text-sm text-muted-foreground">
+                Exibindo {filteredProducts?.length || 0} de {products?.length || 0} produtos
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="flex gap-4 text-sm text-muted-foreground">
@@ -618,6 +796,71 @@ export default function Galeria() {
                       )}
                     </div>
                   )}
+
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        // Open modal and prefetch last import price
+                        setAddingProduct(product);
+                        setAddQuantity(1);
+                        setAddUnitPriceUSD(0);
+                        try {
+                          const res = await lastImportPriceQuery.refetch();
+                          if (res?.data) setAddUnitPriceUSD((res.data || 0) / 100);
+                        } catch (err) {
+                          // ignore
+                        }
+                      }}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar ao Pedido
+                    </Button>
+                  </div>
+                  {/* Add-to-order modal */}
+                  <Dialog open={!!addingProduct} onOpenChange={(open) => { if (!open) setAddingProduct(null); }}>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Adicionar ao Pedido</DialogTitle>
+                        <DialogDescription>
+                          Ajuste a quantidade e o preço em USD antes de adicionar ao Pedido.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Produto</Label>
+                          <div className="mt-1 font-medium">{addingProduct?.name}</div>
+                        </div>
+                        <div>
+                          <Label>Quantidade</Label>
+                          <Input type="number" min={1} value={addQuantity} onChange={(e:any) => setAddQuantity(parseInt(e.target.value) || 1)} />
+                        </div>
+                        <div>
+                          <Label>Preço Unit. (USD)</Label>
+                          <Input type="number" step="0.01" value={addUnitPriceUSD} onChange={(e:any) => setAddUnitPriceUSD(parseFloat(e.target.value) || 0)} />
+                        </div>
+
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" onClick={() => setAddingProduct(null)}>Cancelar</Button>
+                          <Button onClick={() => {
+                            if (!currentOrder?.order?.id || !addingProduct) return;
+                            addItemToOrder.mutate({
+                              orderId: currentOrder.order.id,
+                              productId: addingProduct.id,
+                              quantity: addQuantity,
+                              unitPriceUSD: Math.round(addUnitPriceUSD * 100),
+                            });
+                            setAddingProduct(null);
+                          }}>
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   {/* Custo Médio - sempre oculto */}
                   {product.averageCostBRL > 0 && (

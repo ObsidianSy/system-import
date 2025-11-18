@@ -22,6 +22,13 @@
       "when": 1762972125921,
       "tag": "0002_great_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763491026984,
+      "tag": "0003_bumpy_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }
