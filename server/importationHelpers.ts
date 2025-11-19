@@ -63,6 +63,7 @@ export async function processImportationDelivery(importationId: string): Promise
       .set({
         currentStock: newStock,
         averageCostBRL,
+        lastImportUnitPriceUSD: item.unitPriceUSD,
         updatedAt: new Date(),
       })
       .where(eq(products.id, item.productId));

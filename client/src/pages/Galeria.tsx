@@ -67,10 +67,6 @@ export default function Galeria() {
   const [addingProduct, setAddingProduct] = useState<any | null>(null);
   const [addQuantity, setAddQuantity] = useState<number>(1);
   const [addUnitPriceUSD, setAddUnitPriceUSD] = useState<number>(0);
-  const lastImportPriceQuery = trpc.products.lastImportPrice.useQuery(
-    { productId: addingProduct?.id || '' },
-    { enabled: false }
-  );
 
   // Extrair categorias únicas
   const categories = useMemo(() => {
@@ -801,16 +797,10 @@ export default function Galeria() {
                     <Button
                       onClick={async (e) => {
                         e.stopPropagation();
-                        // Open modal and prefetch last import price
+                        // Open modal and prefill from product's lastImportUnitPriceUSD
                         setAddingProduct(product);
                         setAddQuantity(1);
-                        setAddUnitPriceUSD(0);
-                        try {
-                          const res = await lastImportPriceQuery.refetch();
-                          if (res?.data) setAddUnitPriceUSD((res.data || 0) / 100);
-                        } catch (err) {
-                          // ignore
-                        }
+                        setAddUnitPriceUSD((product.lastImportUnitPriceUSD || 0) / 100);
                       }}
                       variant="ghost"
                       size="sm"
