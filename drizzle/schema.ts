@@ -56,6 +56,7 @@ export const products = pgTable("products", {
   minStock: integer("minStock").default(0),
   averageCostBRL: integer("averageCostBRL").default(0).notNull(),
   salePriceBRL: integer("salePriceBRL").default(0).notNull(),
+  lastImportUnitPriceUSD: integer("lastImportUnitPriceUSD").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });

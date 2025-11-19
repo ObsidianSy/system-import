@@ -35,9 +35,7 @@ export default function Pedidos() {
     }
   });
 
-  const lastImportPriceQuery = trpc.products.lastImportPrice.useQuery({ productId: selectedProductId || '' }, { enabled: false });
-
-  const addItem = async () => {
+  const addItem = () => {
     if (!selectedProductId) return;
     const product = products?.find((p: any) => p.id === selectedProductId);
     if (!product) return;
@@ -183,20 +181,24 @@ export default function Pedidos() {
                 </Select>
               </div>
 
-              {/* Prefill unit price from last import price when product changes */}
+              {/* Prefill unit price from product's lastImportUnitPriceUSD */}
               <div>
                 {selectedProductId && (
-                  <button
-                    className="text-sm text-muted-foreground"
-                    onClick={async () => {
-                      const res = await lastImportPriceQuery.refetch();
-                      if (res?.data) setUnitPriceUSD(res.data / 100);
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-sm"
+                    onClick={() => {
+                      const product = products?.find((p: any) => p.id === selectedProductId);
+                      if (product?.lastImportUnitPriceUSD) {
+                        setUnitPriceUSD(product.lastImportUnitPriceUSD / 100);
+                      }
                     }}
                   >
                     Carregar preço último import (USD)
-                  </button>
-                )}
-              </div>
+                  </Button>
+                )}\n              </div>
 
               <div className="space-y-2">
                 <Label>Quantidade</Label>

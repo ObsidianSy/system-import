@@ -316,6 +316,7 @@ export const appRouter = router({
         minStock: z.number().optional(),
         salePriceBRL: z.number().optional(),
         averageCostBRL: z.number().optional(),
+        lastImportUnitPriceUSD: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;

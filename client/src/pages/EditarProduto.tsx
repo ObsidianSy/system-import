@@ -34,6 +34,7 @@ export default function EditarProduto() {
   const [currentStock, setCurrentStock] = useState("");
   const [minStock, setMinStock] = useState("");
   const [salePriceBRL, setSalePriceBRL] = useState("");
+  const [lastImportUnitPriceUSD, setLastImportUnitPriceUSD] = useState("");
   const [imageUrl, setImageUrl] = useState("");
 
   // Populate form when data loads
@@ -48,6 +49,7 @@ export default function EditarProduto() {
       setCurrentStock(product.currentStock?.toString() || "0");
       setMinStock(product.minStock?.toString() || "0");
       setSalePriceBRL(product.salePriceBRL ? (product.salePriceBRL / 100).toFixed(2) : "");
+      setLastImportUnitPriceUSD(product.lastImportUnitPriceUSD ? (product.lastImportUnitPriceUSD / 100).toFixed(2) : "");
       setImageUrl(product.imageUrl || "");
     }
   }, [product]);
@@ -100,6 +102,7 @@ export default function EditarProduto() {
       currentStock: parseInt(currentStock) || 0,
       minStock: parseInt(minStock) || 0,
       salePriceBRL: salePriceBRL ? Math.round(parseFloat(salePriceBRL) * 100) : 0,
+      lastImportUnitPriceUSD: lastImportUnitPriceUSD ? Math.round(parseFloat(lastImportUnitPriceUSD) * 100) : 0,
       imageUrl: imageUrl.trim() || undefined,
     });
   };
@@ -256,6 +259,21 @@ export default function EditarProduto() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Alerta quando estoque atingir este valor
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastImportUnitPriceUSD">Preço Última Importação (USD)</Label>
+                <Input
+                  id="lastImportUnitPriceUSD"
+                  type="number"
+                  step="0.01"
+                  value={lastImportUnitPriceUSD}
+                  onChange={(e) => setLastImportUnitPriceUSD(e.target.value)}
+                  placeholder="Ex: 25.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Preço unitário em USD da última importação (atualizado automaticamente)
                 </p>
               </div>
 
