@@ -55,6 +55,7 @@ export const products = pgTable("products", {
   currentStock: integer("currentStock").default(0).notNull(),
   minStock: integer("minStock").default(0),
   averageCostBRL: integer("averageCostBRL").default(0).notNull(),
+  averageCostUSD: integer("averageCostUSD").default(0).notNull(),
   salePriceBRL: integer("salePriceBRL").default(0).notNull(),
   lastImportUnitPriceUSD: integer("lastImportUnitPriceUSD").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
@@ -185,8 +186,12 @@ export const stockMovements = pgTable("stockMovements", {
   previousAverageCostBRL: integer("previousAverageCostBRL").default(0).notNull(),
   newAverageCostBRL: integer("newAverageCostBRL").default(0).notNull(),
   
+  previousAverageCostUSD: integer("previousAverageCostUSD").default(0).notNull(),
+  newAverageCostUSD: integer("newAverageCostUSD").default(0).notNull(),
+  
   // Custo unitário desta movimentação específica (em BRL, centavos)
   unitCostBRL: integer("unitCostBRL").default(0).notNull(),
+  unitCostUSD: integer("unitCostUSD").default(0).notNull(),
   
   reference: text("reference"),
   notes: text("notes"),

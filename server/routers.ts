@@ -294,6 +294,8 @@ export const appRouter = router({
         imageUrl: z.string().optional(),
         currentStock: z.number().default(0),
         minStock: z.number().default(0),
+        averageCostUSD: z.number().default(0),
+        lastImportUnitPriceUSD: z.number().default(0),
       }))
       .mutation(async ({ input }) => {
         return db.createProduct({
@@ -316,6 +318,7 @@ export const appRouter = router({
         minStock: z.number().optional(),
         salePriceBRL: z.number().optional(),
         averageCostBRL: z.number().optional(),
+        averageCostUSD: z.number().optional(),
         lastImportUnitPriceUSD: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -430,20 +433,32 @@ export const appRouter = router({
     list: protectedProcedure.query(async () => {
       const imports = await db.listImportations();
       
-      // Convert cents to decimal for display
-      return imports.map(imp => ({
-        ...imp,
-        exchangeRate: centsToDecimal(imp.exchangeRate),
-        subtotalUSD: centsToDecimal(imp.subtotalUSD),
-        freightUSD: centsToDecimal(imp.freightUSD),
-        totalUSD: centsToDecimal(imp.totalUSD),
-        subtotalBRL: centsToDecimal(imp.subtotalBRL),
-        freightBRL: centsToDecimal(imp.freightBRL),
-        importTax: centsToDecimal(imp.importTax),
-        icms: centsToDecimal(imp.icms),
-        otherTaxes: centsToDecimal(imp.otherTaxes),
-        totalCostBRL: centsToDecimal(imp.totalCostBRL),
+      // Fetch items for all importations to allow detailed reporting
+      const importsWithItems = await Promise.all(imports.map(async (imp) => {
+        const items = await db.getImportationItems(imp.id);
+        return {
+          ...imp,
+          items: items.map(item => ({
+            ...item,
+            unitPriceUSD: centsToDecimal(item.unitPriceUSD),
+            totalUSD: centsToDecimal(item.totalUSD),
+            unitCostBRL: centsToDecimal(item.unitCostBRL),
+            totalCostBRL: centsToDecimal(item.totalCostBRL),
+          })),
+          exchangeRate: centsToDecimal(imp.exchangeRate),
+          subtotalUSD: centsToDecimal(imp.subtotalUSD),
+          freightUSD: centsToDecimal(imp.freightUSD),
+          totalUSD: centsToDecimal(imp.totalUSD),
+          subtotalBRL: centsToDecimal(imp.subtotalBRL),
+          freightBRL: centsToDecimal(imp.freightBRL),
+          importTax: centsToDecimal(imp.importTax),
+          icms: centsToDecimal(imp.icms),
+          otherTaxes: centsToDecimal(imp.otherTaxes),
+          totalCostBRL: centsToDecimal(imp.totalCostBRL),
+        };
       }));
+      
+      return importsWithItems;
     }),
 
     get: protectedProcedure
@@ -885,6 +900,37 @@ export const appRouter = router({
       const inTransitImportations = importations.filter(i => i.status === "in_transit").length;
       
       const totalInvestedBRL = importations.reduce((sum, i) => sum + i.totalCostBRL, 0);
+
+      // Monthly Importations (Last 6 months)
+      const monthlyImportations = new Map<string, number>();
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        monthlyImportations.set(key, 0);
+      }
+
+      importations.forEach(imp => {
+        const d = new Date(imp.importDate);
+        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        if (monthlyImportations.has(key)) {
+          monthlyImportations.set(key, (monthlyImportations.get(key) || 0) + imp.totalCostBRL);
+        }
+      });
+
+      const monthlyStats = Array.from(monthlyImportations.entries()).map(([month, total]) => ({
+        month,
+        total: centsToDecimal(total)
+      }));
+
+      // Top Products by Stock Value
+      const topProductsByStockValue = products
+        .map(p => ({
+          name: p.name,
+          value: centsToDecimal(p.currentStock * p.averageCostBRL)
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
       
       return {
         totalProducts,
@@ -894,6 +940,8 @@ export const appRouter = router({
         pendingImportations,
         inTransitImportations,
         totalInvestedBRL: centsToDecimal(totalInvestedBRL),
+        monthlyStats,
+        topProductsByStockValue
       };
     }),
   }),

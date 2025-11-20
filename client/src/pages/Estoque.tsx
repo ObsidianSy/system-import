@@ -11,15 +11,74 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Package, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, TrendingDown, Filter, X } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Estoque() {
   const { data: products, isLoading } = trpc.products.list.useQuery();
   const { data: stats } = trpc.dashboard.stats.useQuery();
 
+  // Estados dos filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+
   const lowStockProducts = products?.filter(p => p.currentStock <= (p.minStock ?? 0)) || [];
-  const normalStockProducts = products?.filter(p => p.currentStock > (p.minStock ?? 0)) || [];
+
+  // Extrair categorias únicas
+  const categories = useMemo(() => {
+    if (!products) return [];
+    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    return uniqueCategories.sort();
+  }, [products]);
+
+  // Aplicar filtros
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+
+    return products.filter(product => {
+      // Filtro de busca
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = 
+          product.name.toLowerCase().includes(search) ||
+          product.sku?.toLowerCase().includes(search);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro de categoria
+      if (categoryFilter !== "all" && product.category !== categoryFilter) {
+        return false;
+      }
+
+      // Filtro de status
+      const isLowStock = product.currentStock <= (product.minStock ?? 0);
+      if (statusFilter === "low" && !isLowStock) return false;
+      if (statusFilter === "normal" && isLowStock) return false;
+
+      return true;
+    });
+  }, [products, searchTerm, categoryFilter, statusFilter]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setStatusFilter("all");
+  };
+
+  const hasActiveFilters = searchTerm || categoryFilter !== "all" || statusFilter !== "all";
 
   return (
     <DashboardLayout>
@@ -75,13 +134,13 @@ export default function Estoque() {
           </Card>
         </div>
 
-        {/* Produtos com Estoque Baixo */}
-        {lowStockProducts.length > 0 && (
-          <Card>
+        {/* Produtos com Estoque Baixo - Sempre visível se houver */}
+        {lowStockProducts.length > 0 && !hasActiveFilters && (
+          <Card className="border-destructive/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
-                Produtos com Estoque Baixo
+                Atenção Necessária
               </CardTitle>
               <CardDescription>
                 Produtos que atingiram ou estão abaixo do estoque mínimo
@@ -165,15 +224,91 @@ export default function Estoque() {
           </Card>
         )}
 
-        {/* Todos os Produtos */}
+        {/* Estoque Geral com Filtros */}
         <Card>
           <CardHeader>
-            <CardTitle>Estoque Geral</CardTitle>
-            <CardDescription>
-              Visualização completa do estoque de todos os produtos
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Estoque Geral</CardTitle>
+                <CardDescription>
+                  Visualização completa do estoque de todos os produtos
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filtros
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="ml-2">
+                    {[searchTerm, categoryFilter !== "all", statusFilter !== "all"].filter(Boolean).length}
+                  </Badge>
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
+            {/* Painel de Filtros */}
+            {showFilters && (
+              <div className="mb-6 p-4 border rounded-lg bg-muted/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">Filtros</h3>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
+                      <X className="h-4 w-4 mr-2" />
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="search">Buscar</Label>
+                    <Input
+                      id="search"
+                      placeholder="Nome ou SKU..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Categoria</Label>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger id="category">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as categorias</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category} value={category!}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger id="status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="low">Baixo/Crítico</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  Exibindo {filteredProducts.length} de {products?.length || 0} produtos
+                </div>
+              </div>
+            )}
+
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
@@ -194,7 +329,7 @@ export default function Estoque() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => {
+                  {filteredProducts.map((product) => {
                     const isLowStock = product.currentStock <= (product.minStock ?? 0);
                     const percentage = product.minStock 
                       ? ((product.currentStock / product.minStock) * 100)
