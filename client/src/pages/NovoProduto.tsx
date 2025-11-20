@@ -20,6 +20,7 @@ export default function NovoProduto() {
     category: "",
     currentStock: 0,
     minStock: 0,
+    lastImportUnitPriceUSD: 0,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -64,7 +65,14 @@ export default function NovoProduto() {
       return;
     }
 
-    createProduct.mutate(formData);
+    // Convert to cents and set averageCostUSD to match lastImportUnitPriceUSD for initial value
+    const lastImportPriceCents = Math.round(formData.lastImportUnitPriceUSD * 100);
+
+    createProduct.mutate({
+      ...formData,
+      lastImportUnitPriceUSD: lastImportPriceCents,
+      averageCostUSD: lastImportPriceCents, // Initialize average cost with the first import price
+    });
   };
 
   const handleChange = (field: string, value: string | number) => {
@@ -206,6 +214,22 @@ export default function NovoProduto() {
                       />
                       <p className="text-xs text-muted-foreground">
                         Alerta quando estoque atingir este valor
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="lastImportUnitPriceUSD">Custo Última Importação (USD)</Label>
+                      <Input
+                        id="lastImportUnitPriceUSD"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={formData.lastImportUnitPriceUSD}
+                        onChange={(e) => handleChange("lastImportUnitPriceUSD", parseFloat(e.target.value) || 0)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Custo unitário da última importação (sem impostos/frete)
                       </p>
                     </div>
                   </div>

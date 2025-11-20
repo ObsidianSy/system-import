@@ -48,8 +48,9 @@ export async function processImportationDelivery(importationId: string): Promise
     const previousStock = product.currentStock;
     const newStock = previousStock + item.quantity;
     const previousAverageCost = product.averageCostBRL;
+    const previousAverageCostUSD = product.averageCostUSD;
 
-    // Calcular custo médio ponderado
+    // Calcular custo médio ponderado (BRL)
     // Fórmula: ((estoque_anterior * custo_médio_anterior) + (quantidade_nova * custo_novo)) / estoque_total
     const previousTotalCost = previousStock * product.averageCostBRL;
     const newTotalCost = item.quantity * item.unitCostBRL;
@@ -57,12 +58,20 @@ export async function processImportationDelivery(importationId: string): Promise
       ? Math.round((previousTotalCost + newTotalCost) / newStock)
       : item.unitCostBRL;
 
+    // Calcular custo médio ponderado (USD)
+    const previousTotalCostUSD = previousStock * product.averageCostUSD;
+    const newTotalCostUSD = item.quantity * item.unitPriceUSD;
+    const averageCostUSD = newStock > 0
+      ? Math.round((previousTotalCostUSD + newTotalCostUSD) / newStock)
+      : item.unitPriceUSD;
+
     // Atualizar o produto
     await db
       .update(products)
       .set({
         currentStock: newStock,
         averageCostBRL,
+        averageCostUSD,
         lastImportUnitPriceUSD: item.unitPriceUSD,
         updatedAt: new Date(),
       })
@@ -79,7 +88,10 @@ export async function processImportationDelivery(importationId: string): Promise
       newStock,
       previousAverageCostBRL: previousAverageCost,
       newAverageCostBRL: averageCostBRL,
+      previousAverageCostUSD: previousAverageCostUSD,
+      newAverageCostUSD: averageCostUSD,
       unitCostBRL: item.unitCostBRL,
+      unitCostUSD: item.unitPriceUSD,
       reference: importation.invoiceNumber || `Importação ${importationId}`,
       notes: `Entrada de estoque - Importação ${importation.invoiceNumber || importationId}`,
       createdAt: new Date(),
@@ -117,6 +129,7 @@ export async function revertImportationDelivery(importationId: string): Promise<
 
     const newStock = product.currentStock - movement.quantity;
     const previousAverageCost = product.averageCostBRL;
+    const previousAverageCostUSD = product.averageCostUSD;
 
     // Recalcular custo médio (voltar ao custo anterior se possível)
     // Nota: Esta é uma simplificação. Em produção, você pode querer armazenar o histórico de custos
@@ -139,7 +152,10 @@ export async function revertImportationDelivery(importationId: string): Promise<
       newStock: Math.max(0, newStock),
       previousAverageCostBRL: previousAverageCost,
       newAverageCostBRL: previousAverageCost, // Mantém o mesmo custo médio na reversão
+      previousAverageCostUSD: previousAverageCostUSD,
+      newAverageCostUSD: previousAverageCostUSD,
       unitCostBRL: 0,
+      unitCostUSD: 0,
       reference: `Reversão de importação`,
       notes: `Reversão de entrada - Importação ${importationId}`,
       createdAt: new Date(),

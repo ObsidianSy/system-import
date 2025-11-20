@@ -115,13 +115,16 @@ export default function EditarImportacaoCompleta() {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // If product is selected, auto-fill name
+    // If product is selected, auto-fill name and cost
     if (field === "productId" && value) {
       const product = products?.find(p => p.id === value);
       if (product) {
         console.log('Produto encontrado:', product);
         newItems[index].productName = product.name;
         newItems[index].supplierProductCode = product.supplierProductCode || "";
+        if (product.lastImportUnitPriceUSD) {
+          newItems[index].unitPriceUSD = (product.lastImportUnitPriceUSD / 100).toString();
+        }
       }
     }
     

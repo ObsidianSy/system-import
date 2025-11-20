@@ -220,8 +220,16 @@ export default function DetalhesProduto() {
                     <p className="font-medium">{product.supplierProductCode || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Custo Médio</p>
+                    <p className="text-sm text-muted-foreground">Custo Médio (BRL)</p>
                     <p className="font-medium">{formatCurrency(product.averageCostBRL)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Custo Última Importação (USD)</p>
+                    <p className="font-medium">
+                      {product.lastImportUnitPriceUSD 
+                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(product.lastImportUnitPriceUSD / 100)
+                        : "-"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Preço de Venda</p>
@@ -249,11 +257,13 @@ export default function DetalhesProduto() {
               </CardHeader>
               <CardContent>
                 {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+                  <div className="flex justify-center bg-white rounded-lg p-2 border">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-auto max-h-[400px] object-contain rounded-lg"
+                    />
+                  </div>
                 ) : (
                   <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
                     <Package className="h-12 w-12 text-muted-foreground" />
@@ -279,9 +289,11 @@ export default function DetalhesProduto() {
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead className="text-right">Estoque Anterior</TableHead>
                     <TableHead className="text-right">Estoque Novo</TableHead>
-                    <TableHead className="text-right">Custo Unit.</TableHead>
+                    <TableHead className="text-right">Custo Unit. (BRL)</TableHead>
+                    <TableHead className="text-right">Custo Unit. (USD)</TableHead>
                     <TableHead className="text-right">Custo Médio Ant.</TableHead>
-                    <TableHead className="text-right">Custo Médio Novo</TableHead>
+                    <TableHead className="text-right">Custo Médio Novo (BRL)</TableHead>
+                    <TableHead className="text-right">Custo Médio Novo (USD)</TableHead>
                     <TableHead>Referência</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -310,6 +322,11 @@ export default function DetalhesProduto() {
                       <TableCell className="text-right text-sm">
                         {movement.unitCostBRL ? formatCurrency(movement.unitCostBRL) : "-"}
                       </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {movement.unitCostUSD 
+                          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.unitCostUSD / 100)
+                          : "-"}
+                      </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">
                         {movement.previousAverageCostBRL ? formatCurrency(movement.previousAverageCostBRL) : "-"}
                       </TableCell>
@@ -324,6 +341,13 @@ export default function DetalhesProduto() {
                                 <TrendingDown className="h-3 w-3 text-green-500" />
                               )
                             )}
+                          </div>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {movement.newAverageCostUSD ? (
+                          <div className="flex items-center justify-end gap-1">
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.newAverageCostUSD / 100)}
                           </div>
                         ) : "-"}
                       </TableCell>

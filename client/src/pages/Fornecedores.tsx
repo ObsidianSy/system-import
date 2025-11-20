@@ -1,8 +1,10 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { Plus, Users, Mail, Phone } from "lucide-react";
+import { Plus, Users, Mail, Phone, Filter, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -12,11 +14,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { useState, useMemo } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Fornecedores() {
   const [, setLocation] = useLocation();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery();
+
+  // Estados dos filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Extrair países únicos
+  const countries = useMemo(() => {
+    if (!suppliers) return [];
+    const uniqueCountries = Array.from(new Set(suppliers.map(s => s.country).filter(Boolean)));
+    return uniqueCountries.sort();
+  }, [suppliers]);
+
+  // Aplicar filtros
+  const filteredSuppliers = useMemo(() => {
+    if (!suppliers) return [];
+
+    return suppliers.filter(supplier => {
+      // Filtro de busca
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = 
+          supplier.name.toLowerCase().includes(search) ||
+          supplier.companyName?.toLowerCase().includes(search) ||
+          supplier.contactPerson?.toLowerCase().includes(search) ||
+          supplier.email?.toLowerCase().includes(search);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro de país
+      if (countryFilter !== "all" && supplier.country !== countryFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [suppliers, searchTerm, countryFilter]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setCountryFilter("all");
+  };
+
+  const hasActiveFilters = searchTerm || countryFilter !== "all";
 
   return (
     <DashboardLayout>
@@ -28,11 +83,76 @@ export default function Fornecedores() {
               Gerencie seus fornecedores e exportadores
             </p>
           </div>
-          <Button onClick={() => setLocation("/fornecedores/novo")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Fornecedor
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-2">
+                  {[searchTerm, countryFilter !== "all"].filter(Boolean).length}
+                </Badge>
+              )}
+            </Button>
+            <Button onClick={() => setLocation("/fornecedores/novo")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Fornecedor
+            </Button>
+          </div>
         </div>
+
+        {/* Painel de Filtros */}
+        {showFilters && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Filtros</CardTitle>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    Limpar Filtros
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search">Buscar</Label>
+                  <Input
+                    id="search"
+                    placeholder="Nome, empresa, contato..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="country">País</Label>
+                  <Select value={countryFilter} onValueChange={setCountryFilter}>
+                    <SelectTrigger id="country">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os países</SelectItem>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country!}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-4 text-sm text-muted-foreground">
+                Exibindo {filteredSuppliers.length} de {suppliers?.length || 0} fornecedores
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -58,7 +178,7 @@ export default function Fornecedores() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {suppliers.map((supplier) => (
+                  {filteredSuppliers.map((supplier) => (
                     <TableRow
                       key={supplier.id}
                       className="cursor-pointer hover:bg-muted/50"

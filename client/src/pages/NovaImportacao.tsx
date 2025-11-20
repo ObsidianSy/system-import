@@ -155,6 +155,7 @@ export default function NovaImportacao() {
         productId: productId,
         productName: product.name,
         productDescription: product.description || "",
+        unitPriceUSD: product.lastImportUnitPriceUSD ? product.lastImportUnitPriceUSD / 100 : 0,
       };
       setItems(newItems);
     }
