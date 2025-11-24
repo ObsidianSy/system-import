@@ -26,6 +26,7 @@ import Galeria from "./pages/Galeria";
 import Pedidos from "./pages/Pedidos";
 import Login from "./pages/Login";
 import Usuarios from "./pages/Usuarios";
+import VendasExternas from "./pages/VendasExternas";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -49,7 +50,8 @@ function Router() {
       <Route path="/fornecedores/:id" component={DetalhesFornecedor} />
       <Route path="/fornecedores/:id/editar" component={EditarFornecedor} />
       <Route path="/galeria" component={Galeria} />
-  <Route path="/pedidos" component={Pedidos} />
+      <Route path="/pedidos" component={Pedidos} />
+      <Route path="/vendas-externas" component={VendasExternas} />
       <Route path="/estoque" component={Estoque} />
       <Route path="/relatorios" component={Relatorios} />
       <Route path="/configuracoes" component={Configuracoes} />

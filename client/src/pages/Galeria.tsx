@@ -63,6 +63,29 @@ export default function Galeria() {
     },
   });
 
+  // Fetch external stock for all products with SKUs
+  const allSkus = useMemo(() => {
+    if (!products) return [];
+    return products.filter(p => p.sku).map(p => p.sku!);
+  }, [products]);
+
+  const { data: externalStockData, isLoading: isLoadingExternalStock } = 
+    trpc.external.getMultipleSkusStock.useQuery(
+      { skus: allSkus },
+      { enabled: allSkus.length > 0 }
+    );
+
+  // Create a map of SKU to external stock for quick lookup
+  const externalStockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (externalStockData) {
+      externalStockData.forEach(item => {
+        map.set(item.sku, item.estoque);
+      });
+    }
+    return map;
+  }, [externalStockData]);
+
   // For quick add with price from last import
   const [addingProduct, setAddingProduct] = useState<any | null>(null);
   const [addQuantity, setAddQuantity] = useState<number>(1);
@@ -95,14 +118,18 @@ export default function Galeria() {
         return false;
       }
 
-      // Filtro de estoque
-      if (stockFilter === "low" && product.currentStock > (product.minStock ?? 0)) {
+      // Filtro de estoque - usar estoque real quando disponível
+      const realStock = product.sku && externalStockMap.has(product.sku) 
+        ? externalStockMap.get(product.sku)! 
+        : product.currentStock;
+        
+      if (stockFilter === "low" && realStock > (product.minStock ?? 0)) {
         return false;
       }
-      if (stockFilter === "out" && product.currentStock > 0) {
+      if (stockFilter === "out" && realStock > 0) {
         return false;
       }
-      if (stockFilter === "available" && product.currentStock === 0) {
+      if (stockFilter === "available" && realStock === 0) {
         return false;
       }
 
@@ -118,7 +145,7 @@ export default function Galeria() {
 
       return true;
     });
-  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax]);
+  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, externalStockMap]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -164,11 +191,21 @@ export default function Galeria() {
           ` : ''}
           ${printConfig.showStockBadge ? `
             <div class="badge badge-stock ${
-              product.currentStock === 0 ? 'out-of-stock' : 
-              product.currentStock <= (product.minStock || 0) ? 'low-stock' : 'in-stock'
+              (() => {
+                const realStock = product.sku && externalStockMap.has(product.sku) 
+                  ? externalStockMap.get(product.sku)
+                  : product.currentStock;
+                return realStock === 0 ? 'out-of-stock' : 
+                  realStock <= (product.minStock || 0) ? 'low-stock' : 'in-stock';
+              })()
             }">
-              ${product.currentStock === 0 ? 'Sem Estoque' : 
-                product.currentStock <= (product.minStock || 0) ? 'Estoque Baixo' : 'Em Estoque'}
+              ${(() => {
+                const realStock = product.sku && externalStockMap.has(product.sku) 
+                  ? externalStockMap.get(product.sku)
+                  : product.currentStock;
+                return realStock === 0 ? 'Sem Estoque' : 
+                  realStock <= (product.minStock || 0) ? 'Estoque Baixo' : 'Em Estoque';
+              })()}
             </div>
           ` : ''}
         </div>
@@ -179,8 +216,15 @@ export default function Galeria() {
             <div class="product-details">
               ${printConfig.showStock ? `
                 <div class="detail-item">
-                  <span class="label">Estoque</span>
-                  <span class="value">${product.currentStock} un</span>
+                  <span class="label">Estoque Real</span>
+                  <span class="value">${
+                    (() => {
+                      const realStock = product.sku && externalStockMap.has(product.sku) 
+                        ? externalStockMap.get(product.sku)
+                        : product.currentStock;
+                      return realStock;
+                    })()
+                  } un</span>
                 </div>
               ` : ''}
               ${printConfig.showPrice && product.salePriceBRL > 0 ? `
@@ -706,7 +750,14 @@ export default function Galeria() {
         <div className="flex gap-4 text-sm text-muted-foreground">
           <span>{filteredProducts?.length || 0} produtos encontrados</span>
           <span>•</span>
-          <span>{products?.filter(p => p.currentStock > 0).length || 0} em estoque</span>
+          <span>
+            {products?.filter(p => {
+              const realStock = p.sku && externalStockMap.has(p.sku) 
+                ? externalStockMap.get(p.sku)! 
+                : p.currentStock;
+              return realStock > 0;
+            }).length || 0} em estoque
+          </span>
         </div>
 
         {/* Gallery Grid - configurável */}
@@ -716,7 +767,7 @@ export default function Galeria() {
               <Card
                 key={product.id}
                 className="group cursor-pointer hover:shadow-lg transition-all overflow-hidden"
-                onClick={() => setLocation(`/produtos/${product.id}`)}
+                onClick={() => setLocation(`/produtos/${product.id}?from=galeria`)}
               >
                 {/* Image Container */}
                 <div className={`relative ${getImageAspect()} bg-muted overflow-hidden`}>
@@ -733,24 +784,30 @@ export default function Galeria() {
                   )}
                   
                   {/* Stock Badge - condicional */}
-                  {printConfig.showStockBadge && (
-                    <div className="absolute top-3 right-3">
-                      {product.currentStock === 0 ? (
-                        <Badge variant="destructive" className="shadow-lg">
-                          Sem Estoque
-                        </Badge>
-                      ) : product.currentStock <= (product.minStock || 0) ? (
-                        <Badge variant="outline" className="bg-yellow-500/90 text-white border-yellow-600 shadow-lg">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Baixo
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-green-500/90 text-white border-green-600 shadow-lg">
-                          Disponível
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                  {printConfig.showStockBadge && (() => {
+                    const realStock = product.sku && externalStockMap.has(product.sku) 
+                      ? externalStockMap.get(product.sku)! 
+                      : product.currentStock;
+                    
+                    return (
+                      <div className="absolute top-3 right-3">
+                        {realStock === 0 ? (
+                          <Badge variant="destructive" className="shadow-lg">
+                            Sem Estoque
+                          </Badge>
+                        ) : realStock <= (product.minStock || 0) ? (
+                          <Badge variant="outline" className="bg-yellow-500/90 text-white border-yellow-600 shadow-lg">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Baixo
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-500/90 text-white border-green-600 shadow-lg">
+                            Disponível
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Category Badge - condicional */}
                   {printConfig.showCategory && product.category && (
@@ -777,8 +834,16 @@ export default function Galeria() {
                     <div className="flex items-center justify-between pt-2 border-t">
                       {printConfig.showStock && (
                         <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">Estoque</p>
-                          <p className="font-semibold text-sm">{product.currentStock} un</p>
+                          <p className="text-xs text-muted-foreground">Estoque Real</p>
+                          <p className="font-semibold text-sm">
+                            {isLoadingExternalStock ? (
+                              <Skeleton className="h-4 w-12" />
+                            ) : product.sku && externalStockMap.has(product.sku) ? (
+                              `${externalStockMap.get(product.sku)} un`
+                            ) : (
+                              `${product.currentStock} un`
+                            )}
+                          </p>
                         </div>
                       )}
                       

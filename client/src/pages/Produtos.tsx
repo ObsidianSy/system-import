@@ -30,6 +30,34 @@ export default function Produtos() {
   const [, setLocation] = useLocation();
   const { data: products, isLoading } = trpc.products.list.useQuery();
 
+  // Fetch external stock data for all products with SKUs
+  const productsWithSkus = useMemo(() => {
+    const skus = products?.filter(p => p.sku).map(p => p.sku!) || [];
+    console.log('[Produtos] SKUs to fetch:', skus);
+    return skus;
+  }, [products]);
+
+  const { data: externalStockData, isLoading: isLoadingExternalStock, error: externalStockError } = trpc.external.getMultipleSkusStock.useQuery(
+    { skus: productsWithSkus },
+    { enabled: productsWithSkus.length > 0 }
+  );
+
+  // Log external stock data for debugging
+  console.log('[Produtos] External stock data:', externalStockData);
+  console.log('[Produtos] External stock loading:', isLoadingExternalStock);
+  console.log('[Produtos] External stock error:', externalStockError);
+
+  // Create a map of SKU -> external stock data
+  const externalStockMap = useMemo(() => {
+    const map = new Map();
+    externalStockData?.forEach(data => {
+      console.log('[Produtos] Mapping SKU:', data.sku, '-> stock:', data.estoque);
+      map.set(data.sku, data.estoque);
+    });
+    console.log('[Produtos] External stock map:', map);
+    return map;
+  }, [externalStockData]);
+
   // Estados dos filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -235,7 +263,8 @@ export default function Produtos() {
                     <TableHead>SKU</TableHead>
                     <TableHead>NCM</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Estoque Atual</TableHead>
+                    <TableHead className="text-right">Estoque Real</TableHead>
+                    <TableHead className="text-right">Total Comprado</TableHead>
                     <TableHead className="text-right">Estoque Mínimo</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
                     <TableHead>Status</TableHead>
@@ -276,6 +305,15 @@ export default function Produtos() {
                         <TableCell>{product.sku || "-"}</TableCell>
                         <TableCell>{product.ncmCode || "-"}</TableCell>
                         <TableCell>{product.category || "-"}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {isLoadingExternalStock ? (
+                            <Skeleton className="h-4 w-12 ml-auto" />
+                          ) : product.sku && externalStockMap.has(product.sku) ? (
+                            externalStockMap.get(product.sku)
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-medium">
                           {product.currentStock}
                         </TableCell>

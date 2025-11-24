@@ -128,15 +128,18 @@ export async function revertImportationDelivery(importationId: string): Promise<
     if (!product) continue;
 
     const newStock = product.currentStock - movement.quantity;
-    const previousAverageCost = product.averageCostBRL;
-    const previousAverageCostUSD = product.averageCostUSD;
+    
+    // Restore previous average costs from the movement record
+    const restoredAverageCostBRL = movement.previousAverageCostBRL;
+    const restoredAverageCostUSD = movement.previousAverageCostUSD;
 
     // Recalcular custo médio (voltar ao custo anterior se possível)
-    // Nota: Esta é uma simplificação. Em produção, você pode querer armazenar o histórico de custos
     await db
       .update(products)
       .set({
         currentStock: Math.max(0, newStock),
+        averageCostBRL: restoredAverageCostBRL,
+        averageCostUSD: restoredAverageCostUSD,
         updatedAt: new Date(),
       })
       .where(eq(products.id, movement.productId));
@@ -150,10 +153,10 @@ export async function revertImportationDelivery(importationId: string): Promise<
       quantity: -movement.quantity,
       previousStock: product.currentStock,
       newStock: Math.max(0, newStock),
-      previousAverageCostBRL: previousAverageCost,
-      newAverageCostBRL: previousAverageCost, // Mantém o mesmo custo médio na reversão
-      previousAverageCostUSD: previousAverageCostUSD,
-      newAverageCostUSD: previousAverageCostUSD,
+      previousAverageCostBRL: product.averageCostBRL,
+      newAverageCostBRL: restoredAverageCostBRL,
+      previousAverageCostUSD: product.averageCostUSD,
+      newAverageCostUSD: restoredAverageCostUSD,
       unitCostBRL: 0,
       unitCostUSD: 0,
       reference: `Reversão de importação`,
