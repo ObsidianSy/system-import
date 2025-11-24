@@ -8,6 +8,9 @@ import * as db from "./db";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
+import { promises as fs } from "fs";
+import path from "path";
+import { externalSalesService } from "./services/externalSales";
 
 const generateId = () => randomBytes(16).toString("hex");
 const centsToDecimal = (cents: number) => cents / 100;
@@ -113,7 +116,7 @@ export const appRouter = router({
         return db.getUser(input.id);
       }),
 
-    create: protectedProcedure
+    create: publicProcedure // Changed to public to allow bootstrapping
       .input(z.object({
         name: z.string(),
         email: z.string().email(),
@@ -121,8 +124,18 @@ export const appRouter = router({
         role: z.enum(["user", "admin"]).default("user"),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user?.role !== "admin") {
-          throw new Error("Apenas administradores podem criar usuários");
+        // Check if any user exists
+        const usersList = await db.listUsers();
+        const isFirstUser = usersList.length === 0;
+
+        if (!isFirstUser) {
+          // If not first user, require admin authentication
+          if (!ctx.user || ctx.user.role !== "admin") {
+            throw new Error("Apenas administradores podem criar usuários");
+          }
+        } else {
+          // First user is always admin
+          input.role = "admin";
         }
 
         // Verificar se email já existe
@@ -324,11 +337,10 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         
-        // Se o custo médio foi atualizado e o preço de venda não foi especificado,
-        // calcular automaticamente: custo médio + R$ 5,00
-        if (data.averageCostBRL !== undefined && data.salePriceBRL === undefined) {
-          data.salePriceBRL = data.averageCostBRL + 500; // +R$ 5,00 (500 centavos)
-        }
+        // Removed automatic price update logic to prevent unwanted changes
+        // if (data.averageCostBRL !== undefined && data.salePriceBRL === undefined) {
+        //   data.salePriceBRL = data.averageCostBRL + 500; // +R$ 5,00 (500 centavos)
+        // }
         
         return db.updateProduct(id, data);
       }),
@@ -347,14 +359,31 @@ export const appRouter = router({
         mimeType: z.string(),
       }))
       .mutation(async ({ input }) => {
-        // TODO: Implement storage solution (AWS S3, Cloudinary, etc.)
-        // For now, return a placeholder URL
-        const timestamp = Date.now();
-        const url = `/uploads/products/${input.productId}-${timestamp}.jpg`;
-        
-        await db.updateProduct(input.productId, { imageUrl: url });
-        
-        return { url };
+        try {
+          // Ensure uploads directory exists
+          const uploadsDir = path.join(process.cwd(), "uploads", "products");
+          await fs.mkdir(uploadsDir, { recursive: true });
+
+          const timestamp = Date.now();
+          const extension = input.mimeType.split("/")[1] || "jpg";
+          const filename = `${input.productId}-${timestamp}.${extension}`;
+          const filePath = path.join(uploadsDir, filename);
+          
+          // Decode base64
+          const buffer = Buffer.from(input.imageData, 'base64');
+          
+          // Write file
+          await fs.writeFile(filePath, buffer);
+          
+          const url = `/uploads/products/${filename}`;
+          
+          await db.updateProduct(input.productId, { imageUrl: url });
+          
+          return { url };
+        } catch (error) {
+          console.error("Error uploading image:", error);
+          throw new Error("Failed to upload image");
+        }
       }),
   }),
 
@@ -944,6 +973,33 @@ export const appRouter = router({
         topProductsByStockValue
       };
     }),
+  }),
+
+  // ========== External Sales System ==========
+  external: router({
+    getStock: protectedProcedure
+      .input(z.object({ sku: z.string() }))
+      .query(async ({ input }) => {
+        return externalSalesService.getStock(input.sku);
+      }),
+
+    getSkuData: protectedProcedure
+      .input(z.object({ sku: z.string() }))
+      .query(async ({ input }) => {
+        return externalSalesService.getSkuData(input.sku);
+      }),
+
+    getMultipleSkusStock: protectedProcedure
+      .input(z.object({ skus: z.array(z.string()) }))
+      .query(async ({ input }) => {
+        return externalSalesService.getMultipleSkusStock(input.skus);
+      }),
+
+    getMultipleSkusData: protectedProcedure
+      .input(z.object({ skus: z.array(z.string()) }))
+      .query(async ({ input }) => {
+        return externalSalesService.getMultipleSkusData(input.skus);
+      }),
   }),
 });
 

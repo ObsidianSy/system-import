@@ -5,9 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator } from "lucide-react";
+import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import {
+  useMemo
+} from "react";
 import {
   Table,
   TableBody,
@@ -18,9 +21,14 @@ import {
 } from "@/components/ui/table";
 
 export default function DetalhesProduto() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [, params] = useRoute("/produtos/:id");
   const productId = params?.id;
+  
+  // Check URL params to determine where user came from
+  const searchParams = new URLSearchParams(location.split('?')[1]);
+  const fromPage = searchParams.get('from');
+  const previousPath = fromPage === 'galeria' ? '/galeria' : '/produtos';
 
   const { data: product, isLoading } = trpc.products.get.useQuery(
     { id: productId! },
@@ -31,6 +39,28 @@ export default function DetalhesProduto() {
     { productId: productId! },
     { enabled: !!productId }
   );
+
+  // Fetch external stock data for this product's SKU
+  const { data: externalStockData } = trpc.external.getMultipleSkusStock.useQuery(
+    { skus: product?.sku ? [product.sku] : [] },
+    { enabled: !!product?.sku }
+  );
+
+  // Fetch full data including sales
+  const { data: externalFullData } = trpc.external.getMultipleSkusData.useQuery(
+    { skus: product?.sku ? [product.sku] : [] },
+    { enabled: !!product?.sku }
+  );
+
+  const externalStock = useMemo(() => {
+    if (!externalStockData || !product?.sku) return null;
+    return externalStockData.find(item => item.sku === product.sku);
+  }, [externalStockData, product?.sku]);
+
+  const externalSales = useMemo(() => {
+    if (!externalFullData || !product?.sku) return null;
+    return externalFullData.find(item => item.sku === product.sku);
+  }, [externalFullData, product?.sku]);
 
   const utils = trpc.useUtils();
   const deleteProduct = trpc.products.delete.useMutation({
@@ -83,8 +113,8 @@ export default function DetalhesProduto() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Produto não encontrado</h3>
-          <Button onClick={() => setLocation("/produtos")}>
-            Voltar para Produtos
+          <Button onClick={() => setLocation(previousPath)}>
+            Voltar para {previousPath === '/galeria' ? 'Galeria' : 'Produtos'}
           </Button>
         </div>
       </DashboardLayout>
@@ -100,7 +130,7 @@ export default function DetalhesProduto() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation("/produtos")}
+            onClick={() => setLocation(previousPath)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -134,30 +164,49 @@ export default function DetalhesProduto() {
           </div>
         </div>
 
-        {/* Cards de Informações */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Cards de Informações - Prioridade: Estoque Real */}
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Atual</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Estoque Real</CardTitle>
+              <Globe className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{product.currentStock}</div>
+              <div className="text-2xl font-bold">
+                {externalStock?.estoque !== undefined 
+                  ? externalStock.estoque 
+                  : "-"}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Mínimo: {product.minStock ?? 0} unidades
+                Sistema externo
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Movimentações</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Comprado</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{product.currentStock}</div>
+              <p className="text-xs text-muted-foreground">
+                Importações registradas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Vendas (30d)</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{movements?.length || 0}</div>
+              <div className="text-2xl font-bold">
+                {externalSales?.vendas?.vendas_30d ?? "-"}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Total de movimentações
+                Total: {externalSales?.vendas?.total_unidades ?? "-"} un.
               </p>
             </CardContent>
           </Card>
@@ -208,7 +257,15 @@ export default function DetalhesProduto() {
                     <p className="font-medium">{product.minStock ?? 0} unidades</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Estoque Atual</p>
+                    <p className="text-sm text-muted-foreground">Estoque Real</p>
+                    <p className="font-medium">
+                      {externalStock?.estoque !== undefined 
+                        ? `${externalStock.estoque} unidades` 
+                        : "Não disponível"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Comprado</p>
                     <p className="font-medium">{product.currentStock} unidades</p>
                   </div>
                   <div>

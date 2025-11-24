@@ -35,7 +35,37 @@ export default function Estoque() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const lowStockProducts = products?.filter(p => p.currentStock <= (p.minStock ?? 0)) || [];
+  // Fetch external stock for all products with SKUs
+  const allSkus = useMemo(() => {
+    if (!products) return [];
+    return products.filter(p => p.sku).map(p => p.sku!);
+  }, [products]);
+
+  const { data: externalStockData, isLoading: isLoadingExternalStock } = 
+    trpc.external.getMultipleSkusStock.useQuery(
+      { skus: allSkus },
+      { enabled: allSkus.length > 0 }
+    );
+
+  // Create a map of SKU to external stock for quick lookup
+  const externalStockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (externalStockData) {
+      externalStockData.forEach(item => {
+        map.set(item.sku, item.estoque);
+      });
+    }
+    return map;
+  }, [externalStockData]);
+
+  // Helper function to get real stock
+  const getRealStock = (product: any) => {
+    return product.sku && externalStockMap.has(product.sku)
+      ? externalStockMap.get(product.sku)!
+      : product.currentStock;
+  };
+
+  const lowStockProducts = products?.filter(p => getRealStock(p) <= (p.minStock ?? 0)) || [];
 
   // Extrair categorias únicas
   const categories = useMemo(() => {
@@ -63,14 +93,15 @@ export default function Estoque() {
         return false;
       }
 
-      // Filtro de status
-      const isLowStock = product.currentStock <= (product.minStock ?? 0);
+      // Filtro de status - usar estoque real
+      const realStock = getRealStock(product);
+      const isLowStock = realStock <= (product.minStock ?? 0);
       if (statusFilter === "low" && !isLowStock) return false;
       if (statusFilter === "normal" && isLowStock) return false;
 
       return true;
     });
-  }, [products, searchTerm, categoryFilter, statusFilter]);
+  }, [products, searchTerm, categoryFilter, statusFilter, externalStockMap]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -159,7 +190,8 @@ export default function Estoque() {
                     <TableRow>
                       <TableHead>Produto</TableHead>
                       <TableHead>SKU</TableHead>
-                      <TableHead className="text-right">Estoque Atual</TableHead>
+                      <TableHead className="text-right">Estoque Real</TableHead>
+                      <TableHead className="text-right">Total Comprado</TableHead>
                       <TableHead className="text-right">Estoque Mínimo</TableHead>
                       <TableHead className="text-right">Nível</TableHead>
                       <TableHead>Status</TableHead>
@@ -167,7 +199,8 @@ export default function Estoque() {
                   </TableHeader>
                   <TableBody>
                     {lowStockProducts.map((product) => {
-                      const percentage = ((product.currentStock / (product.minStock || 1)) * 100);
+                      const realStock = getRealStock(product);
+                      const percentage = ((realStock / (product.minStock || 1)) * 100);
                       return (
                         <TableRow key={product.id}>
                           <TableCell>
@@ -195,6 +228,13 @@ export default function Estoque() {
                           </TableCell>
                           <TableCell>{product.sku || "-"}</TableCell>
                           <TableCell className="text-right font-medium">
+                            {isLoadingExternalStock ? (
+                              <Skeleton className="h-4 w-12 ml-auto" />
+                            ) : (
+                              realStock
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground text-sm">
                             {product.currentStock}
                           </TableCell>
                           <TableCell className="text-right">
@@ -322,17 +362,19 @@ export default function Estoque() {
                     <TableHead>Produto</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Estoque Atual</TableHead>
+                    <TableHead className="text-right">Estoque Real</TableHead>
+                    <TableHead className="text-right">Total Comprado</TableHead>
                     <TableHead className="text-right">Estoque Mínimo</TableHead>
-                    <TableHead className="text-right">Disponibilidade</TableHead>
+                    <TableHead className="text-right">Nível</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.map((product) => {
-                    const isLowStock = product.currentStock <= (product.minStock ?? 0);
+                    const realStock = getRealStock(product);
+                    const isLowStock = realStock <= (product.minStock ?? 0);
                     const percentage = product.minStock 
-                      ? ((product.currentStock / product.minStock) * 100)
+                      ? ((realStock / product.minStock) * 100)
                       : 100;
                     
                     return (
@@ -358,6 +400,13 @@ export default function Estoque() {
                         <TableCell>{product.sku || "-"}</TableCell>
                         <TableCell>{product.category || "-"}</TableCell>
                         <TableCell className="text-right font-medium">
+                          {isLoadingExternalStock ? (
+                            <Skeleton className="h-4 w-12 ml-auto" />
+                          ) : (
+                            realStock
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground text-sm">
                           {product.currentStock}
                         </TableCell>
                         <TableCell className="text-right">

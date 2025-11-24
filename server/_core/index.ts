@@ -51,6 +51,10 @@ async function startServer() {
       createContext,
     })
   );
+
+  // Serve uploads directory
+  const uploadsPath = (await import("path")).join(process.cwd(), "uploads");
+  app.use("/uploads", (await import("express")).default.static(uploadsPath));
   
   console.log('🌐 Configuring static files...');
   

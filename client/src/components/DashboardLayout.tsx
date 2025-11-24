@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Package, FileText, TrendingUp, Settings, BarChart3, Moon, Sun, Images, ShieldCheck, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Package, FileText, TrendingUp, Settings, BarChart3, Moon, Sun, Images, ShieldCheck, ShoppingCart, Globe } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -51,6 +51,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: FileText, label: "Importa\u00e7\u00f5es", path: "/importacoes" },
   { icon: ShoppingCart, label: "Pedidos", path: "/pedidos" },
+  { icon: Globe, label: "Vendas Externas", path: "/vendas-externas" },
   { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: Images, label: "Galeria", path: "/galeria" },
   { icon: Users, label: "Fornecedores", path: "/fornecedores" },
