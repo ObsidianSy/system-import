@@ -41,14 +41,14 @@ export default function Estoque() {
     return products.filter(p => p.sku).map(p => p.sku!);
   }, [products]);
 
-  const { data: externalStockData, isLoading: isLoadingExternalStock } = 
+    const { data: externalStockData, isLoading: isLoadingExternalStock } = 
     trpc.external.getMultipleSkusStock.useQuery(
       { skus: allSkus },
       { enabled: allSkus.length > 0 }
     );
 
   // Create a map of SKU to external stock for quick lookup
-  const externalStockMap = useMemo(() => {
+    const externalStockMap = useMemo(() => {
     const map = new Map<string, number>();
     if (externalStockData) {
       externalStockData.forEach(item => {
@@ -61,7 +61,7 @@ export default function Estoque() {
   // Helper function to get real stock
   const getRealStock = (product: any) => {
     return product.sku && externalStockMap.has(product.sku)
-      ? externalStockMap.get(product.sku)!
+      ? (externalStockMap.get(product.sku) ?? product.currentStock)
       : product.currentStock;
   };
 

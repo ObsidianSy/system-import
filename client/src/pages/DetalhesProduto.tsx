@@ -2,15 +2,16 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StockBadge, StockDisplay } from "@/components/ui/stock-badge";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import {
-  useMemo
-} from "react";
+import { useMemo } from "react";
+import { useExternalStock, useExternalProductData } from "@/_core/hooks/useExternalStock";
+import type { ExternalProductData } from "../../../shared/externalTypes";
 import {
   Table,
   TableBody,
@@ -40,27 +41,18 @@ export default function DetalhesProduto() {
     { enabled: !!productId }
   );
 
-  // Fetch external stock data for this product's SKU
-  const { data: externalStockData } = trpc.external.getMultipleSkusStock.useQuery(
-    { skus: product?.sku ? [product.sku] : [] },
+  // Fetch external stock and sales data using hooks
+  const { getStock, isLoading: isLoadingStock } = useExternalStock(
+    product?.sku ? [product.sku] : [],
     { enabled: !!product?.sku }
   );
 
-  // Fetch full data including sales
-  const { data: externalFullData } = trpc.external.getMultipleSkusData.useQuery(
-    { skus: product?.sku ? [product.sku] : [] },
+  const { getProductData, isLoading: isLoadingProductData } = useExternalProductData(
+    product?.sku ? [product.sku] : [],
     { enabled: !!product?.sku }
   );
 
-  const externalStock = useMemo(() => {
-    if (!externalStockData || !product?.sku) return null;
-    return externalStockData.find(item => item.sku === product.sku);
-  }, [externalStockData, product?.sku]);
-
-  const externalSales = useMemo(() => {
-    if (!externalFullData || !product?.sku) return null;
-    return externalFullData.find(item => item.sku === product.sku);
-  }, [externalFullData, product?.sku]);
+  const externalData: ExternalProductData | undefined = product?.sku ? getProductData(product.sku) : undefined;
 
   const utils = trpc.useUtils();
   const deleteProduct = trpc.products.delete.useMutation({
@@ -173,9 +165,13 @@ export default function DetalhesProduto() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {externalStock?.estoque !== undefined 
-                  ? externalStock.estoque 
-                  : "-"}
+                {isLoadingStock ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : product.sku ? (
+                  getStock(product.sku)
+                ) : (
+                  "-"
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
                 Sistema externo
@@ -203,10 +199,14 @@ export default function DetalhesProduto() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {externalSales?.vendas?.vendas_30d ?? "-"}
+                {isLoadingProductData ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  externalData?.vendas?.vendas_30d ?? "-"
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Total: {externalSales?.vendas?.total_unidades ?? "-"} un.
+                Total: {externalData?.vendas?.total_unidades ?? "-"} un.
               </p>
             </CardContent>
           </Card>
@@ -259,9 +259,13 @@ export default function DetalhesProduto() {
                   <div>
                     <p className="text-sm text-muted-foreground">Estoque Real</p>
                     <p className="font-medium">
-                      {externalStock?.estoque !== undefined 
-                        ? `${externalStock.estoque} unidades` 
-                        : "Não disponível"}
+                      {isLoadingStock ? (
+                        <Skeleton className="h-4 w-24" />
+                      ) : product.sku ? (
+                        `${getStock(product.sku)} unidades`
+                      ) : (
+                        "Não disponível"
+                      )}
                     </p>
                   </div>
                   <div>
