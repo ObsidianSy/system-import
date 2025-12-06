@@ -1,39 +1,31 @@
 import axios from 'axios';
+import { ExternalStockData, ExternalProductData } from '../../shared/externalTypes';
+import { withRetry } from '../_core/retry';
 
 // Configuration for the external API
 const API_CONFIG = {
   BASE_URL: process.env.EXTERNAL_API_URL || 'https://docker-n8n-webhook.q4xusi.easypanel.host/webhook/a1b2d5s58d6555ewd55g',
+  TIMEOUT: 30000, // 30 seconds
+  MAX_RETRIES: 2,
 };
 
-// Simplified response format for stock-only queries
-export interface ExternalStockData {
-  sku: string;
-  estoque: number;
-}
+const DEBUG = process.env.NODE_ENV === 'development';
 
-// Full product data response (for detailed queries)
-export interface ExternalProductData {
-  sku: string;
-  produto: {
-    nome: string;
-    categoria: string;
-    tipo_produto: string;
-    unidade_medida: string;
-    ativo: boolean;
-    is_kit: boolean;
-  };
-  estoque: {
-    quantidade: number;
-    custo_medio: number;
-  };
-  vendas: {
-    total_unidades: number;
-    vendas_7d: number;
-    vendas_30d: number;
-    vendas_90d: number;
-    primeira_venda: string | null;
-    ultima_venda: string | null;
-  };
+/**
+ * Normalizes n8n webhook response format.
+ * n8n can return: array, {data: array}, or single object.
+ */
+function normalizeResponse<T>(data: any): T[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data?.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  if (data && typeof data === 'object') {
+    return [data];
+  }
+  return [];
 }
 
 export class ExternalSalesService {
@@ -42,6 +34,7 @@ export class ExternalSalesService {
   constructor() {
     this.client = axios.create({
       baseURL: API_CONFIG.BASE_URL,
+      timeout: API_CONFIG.TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -50,130 +43,128 @@ export class ExternalSalesService {
 
   /**
    * Fetches stock data for multiple SKUs at once (simplified response).
-   * This matches the webhook format: POST with { "skus": [...] }
-   * Expected response: [{ "sku": "H201", "estoque": 37 }, ...]
+   * Uses retry logic with exponential backoff for resilience.
+   * 
+   * @param skus - Array of SKU strings
+   * @returns Array of {sku, estoque} objects
    */
   async getMultipleSkusStock(skus: string[]): Promise<ExternalStockData[]> {
+    if (skus.length === 0) {
+      return [];
+    }
+
     try {
-      if (skus.length === 0) {
-        console.log(`[ExternalSalesService] No SKUs provided, returning empty array`);
-        return [];
+      if (DEBUG) {
+        console.log(`[ExternalSalesService] Fetching stock for ${skus.length} SKUs`);
       }
-      
-      console.log(`[ExternalSalesService] Fetching stock for ${skus.length} SKUs:`, skus);
-      console.log(`[ExternalSalesService] Sending POST to:`, API_CONFIG.BASE_URL);
-      console.log(`[ExternalSalesService] Request body:`, JSON.stringify({ skus }, null, 2));
-      
-      const response = await axios.post<ExternalStockData[]>(API_CONFIG.BASE_URL, {
-        skus
-      });
-      
-      console.log(`[ExternalSalesService] Response status:`, response.status);
-      console.log(`[ExternalSalesService] Raw response type:`, typeof response.data);
-      console.log(`[ExternalSalesService] Is array?:`, Array.isArray(response.data));
-      
-      const responseData = response.data as any;
-      let items: any[] = [];
-      
-      // Handle different response formats from n8n
-      if (Array.isArray(responseData)) {
-        // Direct array response
-        items = responseData;
-      } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
-        // Wrapped in { data: [...] }
-        console.log(`[ExternalSalesService] Response has .data property with array of ${responseData.data.length} items`);
-        items = responseData.data;
-      } else if (responseData && typeof responseData === 'object') {
-        // Single object, wrap in array
-        console.log(`[ExternalSalesService] Response is a single object, wrapping in array`);
-        items = [responseData];
-      } else {
-        console.warn(`[ExternalSalesService] Unexpected response format`);
-        console.log(`[ExternalSalesService] Response data:`, JSON.stringify(responseData).substring(0, 200));
-        return [];
-      }
-      
-      console.log(`[ExternalSalesService] Processing ${items.length} items`);
-      
+
+      const response = await withRetry(
+        () => axios.post(API_CONFIG.BASE_URL, { skus }),
+        {
+          maxRetries: API_CONFIG.MAX_RETRIES,
+          timeout: API_CONFIG.TIMEOUT,
+          onRetry: (error, attempt, delay) => {
+            console.warn(`[ExternalSalesService] Retry ${attempt}/${API_CONFIG.MAX_RETRIES} after ${delay}ms due to:`, error.message);
+          },
+        }
+      );
+
+      const items = normalizeResponse<any>(response.data);
+
       // Convert full product data to simplified stock data
       const stockData: ExternalStockData[] = items.map((item) => ({
-        sku: item.sku,
-        estoque: item.estoque?.quantidade ?? 0
-      }));
-      
-      console.log(`[ExternalSalesService] Sample data:`, JSON.stringify(stockData.slice(0, 3)));
-      console.log(`[ExternalSalesService] Returning ${stockData.length} stock items`);
+        sku: item.sku || item.produto?.sku || '',
+        estoque: Number(item.estoque?.quantidade ?? item.estoque ?? 0),
+      })).filter(item => item.sku); // Remove items without SKU
+
+      if (DEBUG) {
+        console.log(`[ExternalSalesService] Retrieved ${stockData.length} stock items`);
+      }
+
       return stockData;
     } catch (error: any) {
-      console.error(`[ExternalSalesService] Error fetching stock for multiple SKUs:`, error.message);
-      if (error.response) {
-        console.error(`[ExternalSalesService] Error response status:`, error.response.status);
-        console.error(`[ExternalSalesService] Error response data:`, error.response.data);
-      }
+      console.error(`[ExternalSalesService] Error fetching stock:`, error.message);
+      // Return empty array instead of throwing to prevent breaking the UI
       return [];
     }
   }
 
   /**
-   * Fetches data for multiple SKUs at once.
+   * Fetches full product data for multiple SKUs (stock + sales).
+   * 
+   * @param skus - Array of SKU strings
+   * @returns Array of complete external product data
    */
   async getMultipleSkusData(skus: string[]): Promise<ExternalProductData[]> {
+    if (skus.length === 0) {
+      return [];
+    }
+
     try {
-      if (skus.length === 0) return [];
+      if (DEBUG) {
+        console.log(`[ExternalSalesService] Fetching full data for ${skus.length} SKUs`);
+      }
+
+      const response = await withRetry(
+        () => axios.post(API_CONFIG.BASE_URL, { skus }),
+        {
+          maxRetries: API_CONFIG.MAX_RETRIES,
+          timeout: API_CONFIG.TIMEOUT,
+        }
+      );
+
+      const items = normalizeResponse<ExternalProductData>(response.data);
       
-      console.log(`[ExternalSalesService] Fetching data for ${skus.length} SKUs`);
-      const response = await axios.post<ExternalProductData[]>(API_CONFIG.BASE_URL, {
-        skus
-      });
-      
-      return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-      console.error(`Error fetching data for multiple SKUs:`, error);
+      if (DEBUG) {
+        console.log(`[ExternalSalesService] Retrieved ${items.length} product data items`);
+      }
+
+      return items;
+    } catch (error: any) {
+      console.error(`[ExternalSalesService] Error fetching product data:`, error.message);
       return [];
     }
   }
 
   /**
-   * Fetches the full data for a given SKU from the external system.
+   * Fetches the full data for a single SKU.
+   * 
+   * @param sku - SKU string
+   * @returns External product data or null
    */
   async getSkuData(sku: string): Promise<ExternalProductData | null> {
     try {
-      console.log(`[ExternalSalesService] Fetching data for SKU: ${sku}`);
-      
-      // Scenario 2: POST with SKUs array (even for single SKU)
-      // This matches the user's description of "Cenário 2"
-      const response = await axios.post<ExternalProductData[]>(API_CONFIG.BASE_URL, {
-        skus: [sku]
-      });
-      
-      // If the API returns an array, take the first item
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        return response.data[0];
-      }
-      
-      // Fallback if it returns a single object (unlikely given the spec but good for safety)
-      if (!Array.isArray(response.data) && response.data) {
-        return response.data as ExternalProductData;
-      }
+      const response = await withRetry(
+        () => axios.post(API_CONFIG.BASE_URL, { skus: [sku] }),
+        {
+          maxRetries: API_CONFIG.MAX_RETRIES,
+          timeout: API_CONFIG.TIMEOUT,
+        }
+      );
 
-      return null;
-    } catch (error) {
-      console.error(`Error fetching data for SKU ${sku}:`, error);
+      const items = normalizeResponse<ExternalProductData>(response.data);
+      return items.length > 0 ? items[0] : null;
+    } catch (error: any) {
+      console.error(`[ExternalSalesService] Error fetching SKU ${sku}:`, error.message);
       return null;
     }
   }
 
   /**
-   * Fetches the current stock quantity for a given SKU from the external system.
-   * Kept for backward compatibility with initial implementation.
+   * Fetches stock quantity for a single SKU.
+   * Lightweight method for backward compatibility.
+   * 
+   * @param sku - SKU string
+   * @returns Stock object with quantity or null
    */
   async getStock(sku: string): Promise<{ sku: string; quantity: number; lastUpdated: string } | null> {
     const data = await this.getSkuData(sku);
     if (!data) return null;
 
+    const quantity = Number(data.estoque?.quantidade ?? 0);
     return {
       sku: data.sku,
-      quantity: data.estoque.quantidade,
+      quantity,
       lastUpdated: new Date().toISOString(),
     };
   }

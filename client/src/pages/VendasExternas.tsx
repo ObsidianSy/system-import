@@ -59,7 +59,7 @@ export default function VendasExternas() {
   const topSellers = useMemo(() => {
     if (!externalData) return [];
     return [...externalData]
-      .filter(item => item.vendas?.vendas_30d > 0)
+      .filter(item => (item.vendas?.vendas_30d || 0) > 0)
       .sort((a, b) => (b.vendas?.vendas_30d || 0) - (a.vendas?.vendas_30d || 0))
       .slice(0, 5);
   }, [externalData]);

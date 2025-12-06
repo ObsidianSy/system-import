@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StockBadge } from "@/components/ui/stock-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useExternalStock } from "@/_core/hooks/useExternalStock";
 import {
   Dialog,
   DialogContent,
@@ -63,28 +65,13 @@ export default function Galeria() {
     },
   });
 
-  // Fetch external stock for all products with SKUs
-  const allSkus = useMemo(() => {
-    if (!products) return [];
-    return products.filter(p => p.sku).map(p => p.sku!);
-  }, [products]);
+  // Fetch external stock using custom hook
+  const allSkus = useMemo(() => 
+    products?.filter(p => p.sku).map(p => p.sku!) || [],
+    [products]
+  );
 
-  const { data: externalStockData, isLoading: isLoadingExternalStock } = 
-    trpc.external.getMultipleSkusStock.useQuery(
-      { skus: allSkus },
-      { enabled: allSkus.length > 0 }
-    );
-
-  // Create a map of SKU to external stock for quick lookup
-  const externalStockMap = useMemo(() => {
-    const map = new Map<string, number>();
-    if (externalStockData) {
-      externalStockData.forEach(item => {
-        map.set(item.sku, item.estoque);
-      });
-    }
-    return map;
-  }, [externalStockData]);
+  const { getStock, isLoading: isLoadingExternalStock } = useExternalStock(allSkus);
 
   // For quick add with price from last import
   const [addingProduct, setAddingProduct] = useState<any | null>(null);
@@ -119,8 +106,8 @@ export default function Galeria() {
       }
 
       // Filtro de estoque - usar estoque real quando disponível
-      const realStock = product.sku && externalStockMap.has(product.sku) 
-        ? externalStockMap.get(product.sku)! 
+      const realStock = product.sku 
+        ? getStock(product.sku, product.currentStock)
         : product.currentStock;
         
       if (stockFilter === "low" && realStock > (product.minStock ?? 0)) {
@@ -145,7 +132,7 @@ export default function Galeria() {
 
       return true;
     });
-  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, externalStockMap]);
+  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, getStock]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -192,16 +179,16 @@ export default function Galeria() {
           ${printConfig.showStockBadge ? `
             <div class="badge badge-stock ${
               (() => {
-                const realStock = product.sku && externalStockMap.has(product.sku) 
-                  ? externalStockMap.get(product.sku)
+                const realStock = product.sku 
+                  ? getStock(product.sku, product.currentStock)
                   : product.currentStock;
                 return realStock === 0 ? 'out-of-stock' : 
                   realStock <= (product.minStock || 0) ? 'low-stock' : 'in-stock';
               })()
             }">
               ${(() => {
-                const realStock = product.sku && externalStockMap.has(product.sku) 
-                  ? externalStockMap.get(product.sku)
+                const realStock = product.sku 
+                  ? getStock(product.sku, product.currentStock)
                   : product.currentStock;
                 return realStock === 0 ? 'Sem Estoque' : 
                   realStock <= (product.minStock || 0) ? 'Estoque Baixo' : 'Em Estoque';
@@ -218,9 +205,9 @@ export default function Galeria() {
                 <div class="detail-item">
                   <span class="label">Estoque Real</span>
                   <span class="value">${
-                    (() => {
-                      const realStock = product.sku && externalStockMap.has(product.sku) 
-                        ? externalStockMap.get(product.sku)
+                      (() => {
+                      const realStock = product.sku 
+                        ? getStock(product.sku, product.currentStock)
                         : product.currentStock;
                       return realStock;
                     })()
@@ -752,8 +739,8 @@ export default function Galeria() {
           <span>•</span>
           <span>
             {products?.filter(p => {
-              const realStock = p.sku && externalStockMap.has(p.sku) 
-                ? externalStockMap.get(p.sku)! 
+              const realStock = p.sku 
+                ? getStock(p.sku, p.currentStock)
                 : p.currentStock;
               return realStock > 0;
             }).length || 0} em estoque
@@ -785,8 +772,8 @@ export default function Galeria() {
                   
                   {/* Stock Badge - condicional */}
                   {printConfig.showStockBadge && (() => {
-                    const realStock = product.sku && externalStockMap.has(product.sku) 
-                      ? externalStockMap.get(product.sku)! 
+                    const realStock = product.sku 
+                      ? getStock(product.sku, product.currentStock)
                       : product.currentStock;
                     
                     return (
@@ -838,8 +825,8 @@ export default function Galeria() {
                           <p className="font-semibold text-sm">
                             {isLoadingExternalStock ? (
                               <Skeleton className="h-4 w-12" />
-                            ) : product.sku && externalStockMap.has(product.sku) ? (
-                              `${externalStockMap.get(product.sku)} un`
+                            ) : product.sku ? (
+                              <StockBadge stock={getStock(product.sku, product.currentStock)} variant="compact" />
                             ) : (
                               `${product.currentStock} un`
                             )}
