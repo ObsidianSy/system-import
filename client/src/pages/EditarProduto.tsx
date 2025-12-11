@@ -13,9 +13,18 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 
 export default function EditarProduto() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [, params] = useRoute("/produtos/:id/editar");
   const productId = params?.id;
+  
+  // Check URL params to determine where user came from
+  const searchParams = new URLSearchParams(window.location.search);
+  const fromPage = searchParams.get('from');
+  const previousPath = fromPage === 'galeria' ? '/galeria' : `/produtos/${productId}`;
+  
+  console.log('[EditarProduto] URL:', window.location.href);
+  console.log('[EditarProduto] fromPage:', fromPage);
+  console.log('[EditarProduto] previousPath:', previousPath);
 
   const { data: product, isLoading } = trpc.products.get.useQuery(
     { id: productId! },
@@ -61,7 +70,7 @@ export default function EditarProduto() {
       toast.success("Produto atualizado com sucesso!");
       utils.products.list.invalidate();
       utils.products.get.invalidate({ id: productId! });
-      setLocation(`/produtos/${productId}`);
+      setLocation(previousPath);
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar produto: " + error.message);
@@ -72,7 +81,7 @@ export default function EditarProduto() {
     onSuccess: () => {
       toast.success("Produto deletado com sucesso!");
       utils.products.list.invalidate();
-      setLocation("/produtos");
+      setLocation(fromPage === 'galeria' ? '/galeria' : '/produtos');
     },
     onError: (error: any) => {
       toast.error("Erro ao deletar produto: " + error.message);
@@ -126,8 +135,8 @@ export default function EditarProduto() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h3 className="text-lg font-semibold mb-2">Produto não encontrado</h3>
-          <Button onClick={() => setLocation("/produtos")}>
-            Voltar para Produtos
+          <Button onClick={() => setLocation(fromPage === 'galeria' ? '/galeria' : '/produtos')}>
+            Voltar para {fromPage === 'galeria' ? 'Galeria' : 'Produtos'}
           </Button>
         </div>
       </DashboardLayout>
@@ -142,7 +151,7 @@ export default function EditarProduto() {
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => setLocation(`/produtos/${productId}`)}
+            onClick={() => setLocation(previousPath)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

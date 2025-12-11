@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X } from "lucide-react";
+import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,45 +72,130 @@ export default function Importacoes() {
     });
   }, [importations, searchTerm, statusFilter]);
 
+  // Calcular estatísticas
+  const stats = useMemo(() => {
+    if (!importations) return { totalUSD: 0, totalBRL: 0, totalImports: 0, activeImports: 0 };
+    
+    const totalUSD = importations.reduce((sum, imp) => sum + imp.totalUSD, 0);
+    const totalBRL = importations.reduce((sum, imp) => sum + imp.totalCostBRL, 0);
+    const activeImports = importations.filter(imp => 
+      imp.status === 'pending' || imp.status === 'in_transit' || imp.status === 'customs'
+    ).length;
+
+    return {
+      totalUSD,
+      totalBRL,
+      totalImports: importations.length,
+      activeImports
+    };
+  }, [importations]);
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Importações</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold">Importações</h1>
+            <p className="text-xs text-muted-foreground">
               Gerencie todas as suas importações
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setLocation("/importacoes/importar-excel")}>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/importacoes/importar-excel")}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Importar Excel
             </Button>
-            <Button onClick={() => setLocation("/importacoes/nova")}>
+            <Button size="sm" onClick={() => setLocation("/importacoes/nova")}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Importação
             </Button>
           </div>
         </div>
 
+        {/* Cards de Estatísticas */}
+        {isLoading ? (
+          <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Total USD</p>
+                    <p className="text-lg font-bold mt-0.5">
+                      ${stats.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                  <DollarSign className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Total BRL</p>
+                    <p className="text-sm font-bold text-green-600 mt-0.5">
+                      {formatCurrency(stats.totalBRL)}
+                    </p>
+                  </div>
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Importações</p>
+                    <p className="text-lg font-bold mt-0.5">
+                      {stats.totalImports}
+                    </p>
+                  </div>
+                  <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Em Andamento</p>
+                    <p className="text-lg font-bold text-blue-600 mt-0.5">
+                      {stats.activeImports}
+                    </p>
+                  </div>
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <CardTitle>Lista de Importações</CardTitle>
+          <CardHeader className="pb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <CardTitle className="text-sm">Lista de Importações</CardTitle>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Buscar por fatura..."
-                    className="pl-8 w-full sm:w-[250px]"
+                    className="pl-8 h-9 w-full sm:w-[200px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filtrar por status" />
+                  <SelectTrigger className="h-9 w-full sm:w-[160px]">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(statusLabels).map(([key, label]) => (
@@ -123,7 +208,7 @@ export default function Importacoes() {
                 {(searchTerm || statusFilter !== "all") && (
                   <Button 
                     variant="ghost" 
-                    size="icon" 
+                    size="sm"
                     onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}
                     title="Limpar filtros"
                   >

@@ -1,29 +1,18 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { StockBadge } from "@/components/ui/stock-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
-import { Search, Package, AlertTriangle, Printer, Settings2, Filter, X } from "lucide-react";
+import { Search, Package, Filter, X, Grid3x3, LayoutGrid, ArrowUpDown, Edit, Trash2, ShoppingCart, MoreVertical, Printer, Check } from "lucide-react";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
-import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExternalStock } from "@/_core/hooks/useExternalStock";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -31,52 +20,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Galeria() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [gridSize, setGridSize] = useState<"4" | "6" | "8">("6");
   
   // Filtros
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
+  const [sortBy, setSortBy] = useState("name");
   
-  // Configurações de impressão
-  const [printConfig, setPrintConfig] = useState({
+  // Seleção múltipla
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  
+  // Opções de impressão
+  const [printOptions, setPrintOptions] = useState({
+    showName: true,
     showSku: true,
-    showCategory: true,
-    showStock: true,
     showPrice: true,
-    showStockBadge: false,
-    columns: "8" as "4" | "6" | "8",
+    showCategory: true,
+    showStock: false,
     imageSize: "medium" as "small" | "medium" | "large",
+    columns: 3,
   });
   
   const { data: products, isLoading } = trpc.products.list.useQuery();
-  const utils = trpc.useUtils();
   const { data: currentOrder } = trpc.orders.current.useQuery();
-  const addItemToOrder = trpc.orders.addItem.useMutation({
+  const utils = trpc.useUtils();
+  
+  const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => {
-      utils.orders.current.invalidate();
-      toast.success("Produto adicionado ao pedido");
+      toast.success("Produto excluído com sucesso!");
+      utils.products.list.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir produto: " + error.message);
     },
   });
 
-  // Fetch external stock using custom hook
+  const addItemToOrder = trpc.orders.addItem.useMutation({
+    onSuccess: () => {
+      toast.success("Produto adicionado ao pedido!");
+      utils.orders.current.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao adicionar ao pedido: " + error.message);
+    },
+  });
+
+  // Fetch external stock
   const allSkus = useMemo(() => 
     products?.filter(p => p.sku).map(p => p.sku!) || [],
     [products]
   );
 
   const { getStock, isLoading: isLoadingExternalStock } = useExternalStock(allSkus);
-
-  // For quick add with price from last import
-  const [addingProduct, setAddingProduct] = useState<any | null>(null);
-  const [addQuantity, setAddQuantity] = useState<number>(1);
-  const [addUnitPriceUSD, setAddUnitPriceUSD] = useState<number>(0);
 
   // Extrair categorias únicas
   const categories = useMemo(() => {
@@ -85,11 +110,11 @@ export default function Galeria() {
     return uniqueCategories.sort();
   }, [products]);
 
-  // Aplicar filtros
+  // Aplicar filtros e ordenação
   const filteredProducts = useMemo(() => {
     if (!products) return [];
 
-    return products.filter(product => {
+    let filtered = products.filter(product => {
       // Filtro de busca
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
@@ -105,7 +130,7 @@ export default function Galeria() {
         return false;
       }
 
-      // Filtro de estoque - usar estoque real quando disponível
+      // Filtro de estoque
       const realStock = product.sku 
         ? getStock(product.sku, product.currentStock)
         : product.currentStock;
@@ -132,7 +157,27 @@ export default function Galeria() {
 
       return true;
     });
-  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, getStock]);
+
+    // Aplicar ordenação
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "price-asc":
+          return a.salePriceBRL - b.salePriceBRL;
+        case "price-desc":
+          return b.salePriceBRL - a.salePriceBRL;
+        case "stock": {
+          const stockA = a.sku ? getStock(a.sku, a.currentStock) : a.currentStock;
+          const stockB = b.sku ? getStock(b.sku, b.currentStock) : b.currentStock;
+          return stockB - stockA;
+        }
+        case "name":
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+
+    return filtered;
+  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, sortBy, getStock]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -140,306 +185,216 @@ export default function Galeria() {
     setStockFilter("all");
     setPriceMin("");
     setPriceMax("");
+    setSortBy("name");
   };
 
   const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || priceMin || priceMax;
-
-  const handlePrint = () => {
-    setDialogOpen(false);
-    
-    // Criar janela do catálogo
-    const catalogWindow = window.open('', '_blank', 'width=1200,height=800');
-    if (!catalogWindow) return;
-
-    // Gerar HTML do catálogo
-    const catalogHTML = generateCatalogHTML();
-    catalogWindow.document.write(catalogHTML);
-    catalogWindow.document.close();
-
-    // Aguardar carregar e abrir diálogo de impressão
-    catalogWindow.onload = () => {
-      catalogWindow.print();
-    };
+  
+  const getGridClass = () => {
+    switch(gridSize) {
+      case "4": return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+      case "6": return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+      case "8": return "grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8";
+      default: return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+    }
   };
 
-  const generateCatalogHTML = () => {
-    const gridClass = printConfig.columns === "4" ? "grid-cols-4" : 
-                      printConfig.columns === "6" ? "grid-cols-6" : "grid-cols-8";
-    
-    const productsHTML = filteredProducts?.map(product => `
-      <div class="product-card">
-        <div class="product-image">
-          ${product.imageUrl 
-            ? `<img src="${product.imageUrl}" alt="${product.name}" />` 
-            : `<div class="no-image">Sem Imagem</div>`
-          }
-          ${printConfig.showCategory && product.category ? `
-            <div class="badge badge-category">${product.category}</div>
-          ` : ''}
-          ${printConfig.showStockBadge ? `
-            <div class="badge badge-stock ${
-              (() => {
-                const realStock = product.sku 
-                  ? getStock(product.sku, product.currentStock)
-                  : product.currentStock;
-                return realStock === 0 ? 'out-of-stock' : 
-                  realStock <= (product.minStock || 0) ? 'low-stock' : 'in-stock';
-              })()
-            }">
-              ${(() => {
-                const realStock = product.sku 
-                  ? getStock(product.sku, product.currentStock)
-                  : product.currentStock;
-                return realStock === 0 ? 'Sem Estoque' : 
-                  realStock <= (product.minStock || 0) ? 'Estoque Baixo' : 'Em Estoque';
-              })()}
-            </div>
-          ` : ''}
-        </div>
-        <div class="product-info">
-          <h3 class="product-name">${product.name}</h3>
-          ${printConfig.showSku && product.sku ? `<p class="product-sku">SKU: ${product.sku}</p>` : ''}
-          ${(printConfig.showStock || printConfig.showPrice) ? `
-            <div class="product-details">
-              ${printConfig.showStock ? `
-                <div class="detail-item">
-                  <span class="label">Estoque Real</span>
-                  <span class="value">${
-                      (() => {
-                      const realStock = product.sku 
-                        ? getStock(product.sku, product.currentStock)
-                        : product.currentStock;
-                      return realStock;
-                    })()
-                  } un</span>
-                </div>
-              ` : ''}
-              ${printConfig.showPrice && product.salePriceBRL > 0 ? `
-                <div class="detail-item">
-                  <span class="label">Preço</span>
-                  <span class="value price">${formatCurrency(product.salePriceBRL)}</span>
-                </div>
-              ` : ''}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `).join('') || '';
+  const handleDelete = (e: React.MouseEvent, productId: string, productName: string) => {
+    e.stopPropagation();
+    if (window.confirm(`Tem certeza que deseja excluir "${productName}"?`)) {
+      deleteProduct.mutate({ id: productId });
+    }
+  };
 
-    return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo de Produtos</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  const handleEdit = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    console.log('[Galeria] Navegando para edição:', `/produtos/${productId}/editar?from=galeria`);
+    setLocation(`/produtos/${productId}/editar?from=galeria`);
+  };
+
+  const handleAddToOrder = async (e: React.MouseEvent, product: any) => {
+    e.stopPropagation();
     
-    @page {
-      size: landscape;
-      margin: 1cm;
+    if (!currentOrder?.order?.id) {
+      toast.error("Erro ao obter pedido atual");
+      return;
     }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: white;
-      padding: 20px;
+
+    try {
+      await addItemToOrder.mutateAsync({
+        orderId: currentOrder.order.id,
+        productId: product.id,
+        quantity: 1,
+        unitPriceUSD: product.lastImportUnitPriceUSD || 0,
+      });
+      
+      console.log('[Galeria] Produto adicionado ao pedido:', {
+        productId: product.id,
+        productName: product.name,
+        orderId: currentOrder.order.id,
+      });
+    } catch (error) {
+      console.error('[Galeria] Erro ao adicionar ao pedido:', error);
     }
-    
-    .catalog-header {
-      text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 3px solid #000;
+  };
+
+  const toggleProductSelection = (productId: string) => {
+    const newSelection = new Set(selectedProducts);
+    if (newSelection.has(productId)) {
+      newSelection.delete(productId);
+    } else {
+      newSelection.add(productId);
     }
-    
-    .catalog-header h1 {
-      font-size: 32px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
+    setSelectedProducts(newSelection);
+  };
+
+  const selectAll = () => {
+    if (filteredProducts) {
+      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
     }
-    
-    .catalog-header .date {
-      font-size: 14px;
-      color: #666;
+  };
+
+  const clearSelection = () => {
+    setSelectedProducts(new Set());
+  };
+
+  const addSelectedToOrder = async () => {
+    if (!currentOrder?.order?.id || selectedProducts.size === 0) {
+      toast.error("Selecione produtos primeiro");
+      return;
     }
-    
-    .products-grid {
-      display: grid;
-      grid-template-columns: repeat(${printConfig.columns}, 1fr);
-      gap: 15px;
-    }
-    
-    .product-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
-      background: white;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    
-    .product-image {
-      position: relative;
-      width: 100%;
-      padding-top: ${printConfig.imageSize === 'small' ? '75%' : printConfig.imageSize === 'large' ? '133%' : '100%'};
-      background: #f3f4f6;
-      overflow: hidden;
-    }
-    
-    .product-image img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .no-image {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #9ca3af;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    
-    .badge {
-      position: absolute;
-      padding: 4px 8px;
-      font-size: 10px;
-      font-weight: 600;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-    
-    .badge-category {
-      top: 8px;
-      left: 8px;
-      background: #6b7280;
-      color: white;
-    }
-    
-    .badge-stock {
-      top: 8px;
-      right: 8px;
-    }
-    
-    .badge-stock.in-stock {
-      background: #10b981;
-      color: white;
-    }
-    
-    .badge-stock.low-stock {
-      background: #f59e0b;
-      color: white;
-    }
-    
-    .badge-stock.out-of-stock {
-      background: #ef4444;
-      color: white;
-    }
-    
-    .product-info {
-      padding: 12px;
-    }
-    
-    .product-name {
-      font-size: 13px;
-      font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 4px;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-    
-    .product-sku {
-      font-size: 10px;
-      color: #6b7280;
-      margin-bottom: 8px;
-    }
-    
-    .product-details {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #e5e7eb;
-    }
-    
-    .detail-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    
-    .detail-item .label {
-      font-size: 9px;
-      color: #6b7280;
-      text-transform: uppercase;
-    }
-    
-    .detail-item .value {
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .detail-item .price {
-      color: #10b981;
-    }
-    
-    @media print {
-      body {
-        padding: 0;
+
+    try {
+      const productsToAdd = filteredProducts?.filter(p => selectedProducts.has(p.id)) || [];
+      
+      for (const product of productsToAdd) {
+        await addItemToOrder.mutateAsync({
+          orderId: currentOrder.order.id,
+          productId: product.id,
+          quantity: 1,
+          unitPriceUSD: product.lastImportUnitPriceUSD || 0,
+        });
       }
       
-      .product-card {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
+      toast.success(`${productsToAdd.length} produtos adicionados ao pedido!`);
+      clearSelection();
+    } catch (error) {
+      console.error('[Galeria] Erro ao adicionar em lote:', error);
+    }
+  };
+
+  const printCatalog = () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Selecione produtos para imprimir");
+      return;
+    }
+    setShowPrintDialog(true);
+  };
+
+  const generatePrintHTML = () => {
+    const selectedItems = filteredProducts?.filter(p => selectedProducts.has(p.id)) || [];
+    
+    const gridCols = printOptions.columns;
+    const imageHeight = printOptions.imageSize === "small" ? "120px" : 
+                       printOptions.imageSize === "medium" ? "180px" : "240px";
+
+    let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Catálogo de Produtos</title>
+  <style>
+    @page { size: A4; margin: 1cm; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    .catalog-grid { 
+      display: grid; 
+      grid-template-columns: repeat(${gridCols}, 1fr); 
+      gap: 15px; 
+      margin: 20px 0;
+    }
+    .product-card { 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .product-image { 
+      width: 100%; 
+      height: ${imageHeight}; 
+      object-fit: contain; 
+      margin-bottom: 8px;
+      background: #f5f5f5;
+    }
+    .product-name { font-size: 14px; font-weight: bold; margin: 5px 0; }
+    .product-sku { font-size: 11px; color: #666; margin: 3px 0; }
+    .product-price { font-size: 13px; color: #2563eb; font-weight: bold; margin: 5px 0; }
+    .product-category { font-size: 10px; color: #888; margin: 3px 0; }
+    .product-stock { font-size: 11px; color: #16a34a; margin: 3px 0; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    h1 { margin: 0; font-size: 24px; }
+    .date { font-size: 12px; color: #666; }
+    @media print {
+      .no-print { display: none; }
+      body { padding: 10px; }
     }
   </style>
 </head>
 <body>
-  <div class="catalog-header">
+  <div class="header">
     <h1>Catálogo de Produtos</h1>
-    <p class="date">${new Date().toLocaleDateString('pt-BR', { 
+    <div class="date">Gerado em: ${new Date().toLocaleDateString('pt-BR', { 
       day: '2-digit', 
-      month: 'long', 
-      year: 'numeric' 
-    })}</p>
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}</div>
   </div>
   
-  <div class="products-grid">
-    ${productsHTML}
+  <div class="catalog-grid">
+`;
+
+    selectedItems.forEach(product => {
+      html += `
+    <div class="product-card">
+      ${product.imageUrl ? `<img src="${product.imageUrl}" class="product-image" alt="${product.name}">` : 
+        `<div class="product-image" style="display:flex;align-items:center;justify-content:center;color:#ccc;">Sem imagem</div>`}
+      ${printOptions.showName ? `<div class="product-name">${product.name}</div>` : ''}
+      ${printOptions.showSku && product.sku ? `<div class="product-sku">SKU: ${product.sku}</div>` : ''}
+      ${printOptions.showCategory && product.category ? `<div class="product-category">${product.category}</div>` : ''}
+      ${printOptions.showPrice && product.salePriceBRL > 0 ? `<div class="product-price">${formatCurrency(product.salePriceBRL)}</div>` : ''}
+      ${printOptions.showStock ? `<div class="product-stock">Estoque: ${product.currentStock} un</div>` : ''}
+    </div>
+`;
+    });
+
+    html += `
   </div>
+  
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
 </body>
 </html>
-    `;
+`;
+
+    return html;
   };
 
-  const getGridCols = () => {
-    const cols = printConfig.columns;
-    if (cols === "4") return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 print:grid-cols-4";
-    if (cols === "6") return "grid-cols-2 md:grid-cols-4 lg:grid-cols-6 print:grid-cols-6";
-    return "grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 print:grid-cols-8";
-  };
-
-  const getImageAspect = () => {
-    if (printConfig.imageSize === "small") return "aspect-square print:aspect-[4/3]";
-    if (printConfig.imageSize === "large") return "aspect-square print:aspect-[3/4]";
-    return "aspect-square";
+  const executePrint = () => {
+    const html = generatePrintHTML();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
+    setShowPrintDialog(false);
   };
 
   if (isLoading) {
@@ -447,9 +402,9 @@ export default function Galeria() {
       <DashboardLayout>
         <div className="space-y-6">
           <Skeleton className="h-12 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-96" />
+          <div className={`grid ${getGridClass()} gap-4`}>
+            {[...Array(12)].map((_, i) => (
+              <Skeleton key={i} className="aspect-square" />
             ))}
           </div>
         </div>
@@ -460,462 +415,374 @@ export default function Galeria() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header Minimalista */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Galeria de Produtos</h1>
-            <p className="text-muted-foreground">
-              Visualização focada nas imagens dos produtos
+            <h1 className="text-2xl font-bold">Galeria de Produtos</h1>
+            <p className="text-sm text-muted-foreground">
+              {filteredProducts?.length || 0} de {products?.length || 0} produtos • {products?.filter(p => {
+                const realStock = p.sku ? getStock(p.sku, p.currentStock) : p.currentStock;
+                return realStock > 0;
+              }).length || 0} em estoque
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2">
-                  {[searchTerm, categoryFilter !== "all", stockFilter !== "all", priceMin, priceMax].filter(Boolean).length}
-                </Badge>
-              )}
-            </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir Catálogo
+          
+          {/* Ações e Controles */}
+          <div className="flex items-center gap-2">
+            {currentOrder?.items && currentOrder.items.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setLocation('/pedidos')}
+                className="gap-2"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                <span className="font-semibold">{currentOrder.items.length}</span>
+                <span className="text-xs text-muted-foreground">
+                  {currentOrder.items.length === 1 ? 'item' : 'itens'}
+                </span>
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Configurar Impressão do Catálogo</DialogTitle>
-                <DialogDescription>
-                  Escolha quais informações deseja exibir no catálogo impresso
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-6 py-4">
-                {/* Layout */}
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Layout</Label>
-                  <RadioGroup
-                    value={printConfig.columns}
-                    onValueChange={(value: "4" | "6" | "8") =>
-                      setPrintConfig({ ...printConfig, columns: value })
-                    }
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="4" id="cols-4" />
-                      <Label htmlFor="cols-4" className="font-normal cursor-pointer">
-                        4 colunas (mais espaçoso)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="6" id="cols-6" />
-                      <Label htmlFor="cols-6" className="font-normal cursor-pointer">
-                        6 colunas (equilibrado)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="8" id="cols-8" />
-                      <Label htmlFor="cols-8" className="font-normal cursor-pointer">
-                        8 colunas (mais compacto)
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {/* Tamanho das Imagens */}
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Tamanho das Imagens</Label>
-                  <RadioGroup
-                    value={printConfig.imageSize}
-                    onValueChange={(value: "small" | "medium" | "large") =>
-                      setPrintConfig({ ...printConfig, imageSize: value })
-                    }
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="small" id="img-small" />
-                      <Label htmlFor="img-small" className="font-normal cursor-pointer">
-                        Pequeno
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="medium" id="img-medium" />
-                      <Label htmlFor="img-medium" className="font-normal cursor-pointer">
-                        Médio (recomendado)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="large" id="img-large" />
-                      <Label htmlFor="img-large" className="font-normal cursor-pointer">
-                        Grande
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {/* Informações a exibir */}
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Informações a Exibir</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="show-sku"
-                        checked={printConfig.showSku}
-                        onCheckedChange={(checked) =>
-                          setPrintConfig({ ...printConfig, showSku: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="show-sku" className="font-normal cursor-pointer">
-                        Código SKU
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="show-category"
-                        checked={printConfig.showCategory}
-                        onCheckedChange={(checked) =>
-                          setPrintConfig({ ...printConfig, showCategory: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="show-category" className="font-normal cursor-pointer">
-                        Categoria
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="show-stock"
-                        checked={printConfig.showStock}
-                        onCheckedChange={(checked) =>
-                          setPrintConfig({ ...printConfig, showStock: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="show-stock" className="font-normal cursor-pointer">
-                        Quantidade em Estoque
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="show-price"
-                        checked={printConfig.showPrice}
-                        onCheckedChange={(checked) =>
-                          setPrintConfig({ ...printConfig, showPrice: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="show-price" className="font-normal cursor-pointer">
-                        Preço de Venda
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="show-stock-badge"
-                        checked={printConfig.showStockBadge}
-                        onCheckedChange={(checked) =>
-                          setPrintConfig({ ...printConfig, showStockBadge: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="show-stock-badge" className="font-normal cursor-pointer">
-                        Status do Estoque (badges)
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handlePrint} className="flex-1">
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            )}
+            <Button
+              variant={gridSize === "4" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setGridSize("4")}
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={gridSize === "6" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setGridSize("6")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={gridSize === "8" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setGridSize("8")}
+            >
+              <Package className="h-3 w-3" />
+            </Button>
           </div>
         </div>
 
-        {/* Painel de Filtros */}
-        {showFilters && (
-          <Card>
-            <CardHeader>
+        {/* Barra de Ações em Lote */}
+        {selectedProducts.size > 0 && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <CardTitle>Filtros</CardTitle>
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-2">
-                  <Label htmlFor="search-filter">Buscar</Label>
-                  <Input
-                    id="search-filter"
-                    placeholder="Nome, SKU ou categoria..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as categorias</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category!}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="stock-filter">Estoque</Label>
-                  <Select value={stockFilter} onValueChange={setStockFilter}>
-                    <SelectTrigger id="stock-filter">
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="available">Disponível</SelectItem>
-                      <SelectItem value="low">Estoque Baixo</SelectItem>
-                      <SelectItem value="out">Sem Estoque</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Faixa de Preço (R$)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Mín"
-                      value={priceMin}
-                      onChange={(e) => setPriceMin(e.target.value)}
-                    />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Máx"
-                      value={priceMax}
-                      onChange={(e) => setPriceMax(e.target.value)}
-                    />
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-5 w-5 text-primary" />
+                    <span className="font-semibold">
+                      {selectedProducts.size} {selectedProducts.size === 1 ? 'produto selecionado' : 'produtos selecionados'}
+                    </span>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSelection}
+                  >
+                    Limpar seleção
+                  </Button>
                 </div>
-              </div>
-
-              <div className="mt-4 text-sm text-muted-foreground">
-                Exibindo {filteredProducts?.length || 0} de {products?.length || 0} produtos
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAll}
+                  >
+                    Selecionar todos ({filteredProducts?.length || 0})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addSelectedToOrder}
+                    disabled={addItemToOrder.isPending}
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Adicionar ao pedido
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={printCatalog}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir catálogo
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Stats */}
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span>{filteredProducts?.length || 0} produtos encontrados</span>
-          <span>•</span>
-          <span>
-            {products?.filter(p => {
-              const realStock = p.sku 
-                ? getStock(p.sku, p.currentStock)
-                : p.currentStock;
-              return realStock > 0;
-            }).length || 0} em estoque
-          </span>
-        </div>
+        {/* Barra de Busca e Filtros Inline */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Busca */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome, categoria ou SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-        {/* Gallery Grid - configurável */}
-        {filteredProducts && filteredProducts.length > 0 ? (
-          <div className={`grid ${getGridCols()} gap-4`}>
-            {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className="group cursor-pointer hover:shadow-lg transition-all overflow-hidden"
-                onClick={() => setLocation(`/produtos/${product.id}?from=galeria`)}
-              >
-                {/* Image Container */}
-                <div className={`relative ${getImageAspect()} bg-muted overflow-hidden`}>
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="h-20 w-20 text-muted-foreground/30" />
-                    </div>
-                  )}
-                  
-                  {/* Stock Badge - condicional */}
-                  {printConfig.showStockBadge && (() => {
-                    const realStock = product.sku 
-                      ? getStock(product.sku, product.currentStock)
-                      : product.currentStock;
-                    
-                    return (
-                      <div className="absolute top-3 right-3">
-                        {realStock === 0 ? (
-                          <Badge variant="destructive" className="shadow-lg">
-                            Sem Estoque
-                          </Badge>
-                        ) : realStock <= (product.minStock || 0) ? (
-                          <Badge variant="outline" className="bg-yellow-500/90 text-white border-yellow-600 shadow-lg">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Baixo
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-green-500/90 text-white border-green-600 shadow-lg">
-                            Disponível
-                          </Badge>
-                        )}
+              {/* Filtros Inline */}
+              <div className="flex gap-2 flex-wrap lg:flex-nowrap">
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={stockFilter} onValueChange={setStockFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Estoque" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="available">Disponível</SelectItem>
+                    <SelectItem value="low">Baixo</SelectItem>
+                    <SelectItem value="out">Esgotado</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[140px]">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Ordenar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Nome</SelectItem>
+                    <SelectItem value="price-asc">Menor Preço</SelectItem>
+                    <SelectItem value="price-desc">Maior Preço</SelectItem>
+                    <SelectItem value="stock">Estoque</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Filtros Avançados - Sheet */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Filter className="h-4 w-4" />
+                      {hasActiveFilters && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
+                          !
+                        </span>
+                      )}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent>
+                    <SheetHeader>
+                      <SheetTitle>Filtros Avançados</SheetTitle>
+                      <SheetDescription>
+                        Refine sua busca com filtros de preço
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-6">
+                      <div className="space-y-2">
+                        <Label>Faixa de Preço (R$)</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Mín"
+                            value={priceMin}
+                            onChange={(e) => setPriceMin(e.target.value)}
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Máx"
+                            value={priceMax}
+                            onChange={(e) => setPriceMax(e.target.value)}
+                          />
+                        </div>
                       </div>
-                    );
-                  })()}
 
-                  {/* Category Badge - condicional */}
-                  {printConfig.showCategory && product.category && (
-                    <div className="absolute top-3 left-3">
-                      <Badge variant="secondary" className="shadow-lg">
-                        {product.category}
-                      </Badge>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="outline"
+                          onClick={clearFilters}
+                          className="w-full"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Limpar Filtros
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                {/* Product Info */}
-                <CardContent className="p-4 space-y-2">
-                  <div>
-                    <h3 className="font-semibold text-base line-clamp-2 group-hover:text-primary transition-colors">
-                      {product.name}
-                    </h3>
-                    {printConfig.showSku && product.sku && (
-                      <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+        {/* Gallery Grid */}
+        {filteredProducts && filteredProducts.length > 0 ? (
+          <div className={`grid ${getGridClass()} gap-4`}>
+            {filteredProducts.map((product) => {
+              const realStock = product.sku 
+                ? getStock(product.sku, product.currentStock)
+                : product.currentStock;
+              const isLowStock = realStock <= (product.minStock || 0) && realStock > 0;
+              const isOutOfStock = realStock === 0;
+
+              return (
+                <Card
+                  key={product.id}
+                  className={`group cursor-pointer hover:shadow-xl transition-all duration-300 overflow-hidden border-2 hover:border-primary/50 ${
+                    selectedProducts.has(product.id) ? 'ring-2 ring-primary border-primary' : ''
+                  }`}
+                  onClick={() => {
+                    console.log('[Galeria] Navegando para:', `/produtos/${product.id}?from=galeria`);
+                    setLocation(`/produtos/${product.id}?from=galeria`);
+                  }}
+                >
+                  {/* Image Container - Minimalista */}
+                  <div className="relative aspect-square bg-muted/30 overflow-hidden">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="h-16 w-16 text-muted-foreground/20" />
+                      </div>
+                    )}
+                    
+                    {/* Checkbox de Seleção - Canto Superior Esquerdo */}
+                    <div 
+                      className="absolute top-2 left-2 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="bg-white rounded-md p-1 shadow-lg">
+                        <Checkbox
+                          checked={selectedProducts.has(product.id)}
+                          onCheckedChange={() => toggleProductSelection(product.id)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Botão Adicionar ao Carrinho - Canto Inferior Direito */}
+                    <div className="absolute bottom-2 right-2 z-10">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-9 w-9 rounded-full shadow-lg hover:scale-110 transition-transform"
+                        onClick={(e) => handleAddToOrder(e, product)}
+                        title="Adicionar ao Pedido"
+                        disabled={addItemToOrder.isPending}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Menu de Opções - Canto Superior Direito (ao lado do Stock) */}
+                    <div className="absolute top-2 right-2 z-10 flex gap-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8 rounded-full shadow-lg backdrop-blur-sm"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(e as any, product.id);
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(e as any, product.id, product.name);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    {/* Stock Badge - Abaixo do Menu */}
+                    <div className="absolute top-12 right-2">
+                      {isOutOfStock ? (
+                        <Badge variant="destructive" className="shadow-lg backdrop-blur-sm">
+                          Esgotado
+                        </Badge>
+                      ) : isLowStock ? (
+                        <Badge variant="outline" className="bg-yellow-500/90 text-white border-yellow-600 shadow-lg backdrop-blur-sm">
+                          Baixo
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-500/90 text-white border-green-600 shadow-lg backdrop-blur-sm">
+                          {realStock} un
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Category Badge - Canto Inferior */}
+                    {product.category && (
+                      <div className="absolute bottom-2 left-2">
+                        <Badge variant="secondary" className="shadow-lg backdrop-blur-sm">
+                          {product.category}
+                        </Badge>
+                      </div>
                     )}
                   </div>
 
-                  {(printConfig.showStock || printConfig.showPrice) && (
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      {printConfig.showStock && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">Estoque Real</p>
-                          <p className="font-semibold text-sm">
-                            {isLoadingExternalStock ? (
-                              <Skeleton className="h-4 w-12" />
-                            ) : product.sku ? (
-                              <StockBadge stock={getStock(product.sku, product.currentStock)} variant="compact" />
-                            ) : (
-                              `${product.currentStock} un`
-                            )}
+                  {/* Product Info - Minimalista */}
+                  <CardContent className="p-3">
+                    <div className="space-y-2">
+                      <div>
+                        <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+                          {product.name}
+                        </h3>
+                        {product.sku && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {product.sku}
                           </p>
-                        </div>
-                      )}
-                      
-                      {printConfig.showPrice && product.salePriceBRL > 0 && (
-                        <div className="space-y-1 text-right">
-                          <p className="text-xs text-muted-foreground">Preço</p>
-                          <p className="font-semibold text-sm text-green-600">
+                        )}
+                      </div>
+
+                      {product.salePriceBRL > 0 && (
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <span className="text-xs text-muted-foreground">Preço</span>
+                          <span className="font-bold text-sm text-green-600">
                             {formatCurrency(product.salePriceBRL)}
-                          </p>
+                          </span>
                         </div>
                       )}
                     </div>
-                  )}
-
-                  <div className="mt-2 flex justify-end">
-                    <Button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        // Open modal and prefill from product's lastImportUnitPriceUSD
-                        setAddingProduct(product);
-                        setAddQuantity(1);
-                        setAddUnitPriceUSD((product.lastImportUnitPriceUSD || 0) / 100);
-                      }}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar ao Pedido
-                    </Button>
-                  </div>
-                  {/* Add-to-order modal */}
-                  <Dialog open={!!addingProduct} onOpenChange={(open) => { if (!open) setAddingProduct(null); }}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader>
-                        <DialogTitle>Adicionar ao Pedido</DialogTitle>
-                        <DialogDescription>
-                          Ajuste a quantidade e o preço em USD antes de adicionar ao Pedido.
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Produto</Label>
-                          <div className="mt-1 font-medium">{addingProduct?.name}</div>
-                        </div>
-                        <div>
-                          <Label>Quantidade</Label>
-                          <Input type="number" min={1} value={addQuantity} onChange={(e:any) => setAddQuantity(parseInt(e.target.value) || 1)} />
-                        </div>
-                        <div>
-                          <Label>Preço Unit. (USD)</Label>
-                          <Input type="number" step="0.01" value={addUnitPriceUSD} onChange={(e:any) => setAddUnitPriceUSD(parseFloat(e.target.value) || 0)} />
-                        </div>
-
-                        <div className="flex gap-2 justify-end">
-                          <Button variant="outline" onClick={() => setAddingProduct(null)}>Cancelar</Button>
-                          <Button onClick={() => {
-                            if (!currentOrder?.order?.id || !addingProduct) return;
-                            addItemToOrder.mutate({
-                              orderId: currentOrder.order.id,
-                              productId: addingProduct.id,
-                              quantity: addQuantity,
-                              unitPriceUSD: Math.round(addUnitPriceUSD * 100),
-                            });
-                            setAddingProduct(null);
-                          }}>
-                            Adicionar
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* Custo Médio - sempre oculto */}
-                  {product.averageCostBRL > 0 && (
-                    <div className="pt-2 border-t">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Custo Médio:</span>
-                        <span className="font-medium">{formatCurrency(product.averageCostBRL)}</span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card className="p-12">
@@ -924,21 +791,150 @@ export default function Galeria() {
               <div>
                 <h3 className="font-semibold text-lg">Nenhum produto encontrado</h3>
                 <p className="text-muted-foreground text-sm">
-                  {searchTerm
-                    ? "Tente buscar com outros termos"
+                  {hasActiveFilters
+                    ? "Tente ajustar os filtros"
                     : "Comece cadastrando seus produtos"}
                 </p>
               </div>
-              {!searchTerm && (
-                <Button onClick={() => setLocation("/produtos/novo")}>
-                  Cadastrar Produto
+              {hasActiveFilters && (
+                <Button onClick={clearFilters} variant="outline">
+                  <X className="h-4 w-4 mr-2" />
+                  Limpar Filtros
                 </Button>
               )}
             </div>
           </Card>
         )}
       </div>
+
+      {/* Dialog de Configuração de Impressão */}
+      <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Configurar Impressão do Catálogo</DialogTitle>
+            <DialogDescription>
+              {selectedProducts.size} {selectedProducts.size === 1 ? 'produto selecionado' : 'produtos selecionados'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Informações a exibir</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showName"
+                    checked={printOptions.showName}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showName: !!checked })
+                    }
+                  />
+                  <label htmlFor="showName" className="text-sm cursor-pointer">
+                    Nome do produto
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showSku"
+                    checked={printOptions.showSku}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showSku: !!checked })
+                    }
+                  />
+                  <label htmlFor="showSku" className="text-sm cursor-pointer">
+                    SKU
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showCategory"
+                    checked={printOptions.showCategory}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showCategory: !!checked })
+                    }
+                  />
+                  <label htmlFor="showCategory" className="text-sm cursor-pointer">
+                    Categoria
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showPrice"
+                    checked={printOptions.showPrice}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showPrice: !!checked })
+                    }
+                  />
+                  <label htmlFor="showPrice" className="text-sm cursor-pointer">
+                    Preço
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showStock"
+                    checked={printOptions.showStock}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showStock: !!checked })
+                    }
+                  />
+                  <label htmlFor="showStock" className="text-sm cursor-pointer">
+                    Estoque
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="imageSize">Tamanho da imagem</Label>
+              <Select
+                value={printOptions.imageSize}
+                onValueChange={(value: "small" | "medium" | "large") =>
+                  setPrintOptions({ ...printOptions, imageSize: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">Pequeno</SelectItem>
+                  <SelectItem value="medium">Médio</SelectItem>
+                  <SelectItem value="large">Grande</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="columns">Colunas por página</Label>
+              <Select
+                value={printOptions.columns.toString()}
+                onValueChange={(value) =>
+                  setPrintOptions({ ...printOptions, columns: parseInt(value) })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2 colunas</SelectItem>
+                  <SelectItem value="3">3 colunas</SelectItem>
+                  <SelectItem value="4">4 colunas</SelectItem>
+                  <SelectItem value="5">5 colunas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPrintDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={executePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
-
