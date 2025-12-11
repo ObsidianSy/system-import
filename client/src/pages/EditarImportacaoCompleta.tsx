@@ -229,23 +229,24 @@ export default function EditarImportacaoCompleta() {
 
   return (
     <DashboardLayout>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center gap-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex items-center gap-3">
           <Button
             type="button"
             variant="ghost"
             size="icon"
+            className="h-8 w-8"
             onClick={() => setLocation(`/importacoes/${importationId}`)}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Editar Valores e Produtos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl font-bold">Editar Valores e Produtos</h1>
+            <p className="text-xs text-muted-foreground">
               Altere quantidades, preços, impostos, frete e produtos
             </p>
           </div>
-          <Button type="submit" disabled={updateImportation.isPending}>
+          <Button type="submit" disabled={updateImportation.isPending} size="sm">
             <Save className="h-4 w-4 mr-2" />
             Salvar Alterações
           </Button>
@@ -253,26 +254,27 @@ export default function EditarImportacaoCompleta() {
 
         {/* Informações Básicas */}
         <Card>
-          <CardHeader>
-            <CardTitle>Informações da Importação</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Informações da Importação</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumber">Número da Fatura</Label>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2 md:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor="invoiceNumber" className="text-xs">Número da Fatura</Label>
                 <Input
                   id="invoiceNumber"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="Ex: INV-2024-001"
+                  placeholder="import shopee subverse"
+                  className="h-8 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Fornecedor *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="supplier" className="text-xs">Fornecedor *</Label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o fornecedor" />
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {suppliers?.map((supplier) => (
@@ -284,77 +286,83 @@ export default function EditarImportacaoCompleta() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="importDate">Data da Importação *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="importDate" className="text-xs">Data da Importação *</Label>
                 <Input
                   id="importDate"
                   type="date"
                   value={importDate}
                   onChange={(e) => setImportDate(e.target.value)}
                   required
+                  className="h-8 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="exchangeRate">Taxa de Câmbio (R$) *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="exchangeRate" className="text-xs">Taxa de Câmbio (R$) *</Label>
                 <Input
                   id="exchangeRate"
                   type="number"
                   step="0.01"
                   value={exchangeRate}
                   onChange={(e) => setExchangeRate(e.target.value)}
-                  placeholder="Ex: 5.46"
+                  placeholder="1"
                   required
+                  className="h-8 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="freightUSD">Frete (USD) *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="freightUSD" className="text-xs">Frete (USD) *</Label>
                 <Input
                   id="freightUSD"
                   type="number"
                   step="0.01"
                   value={freightUSD}
                   onChange={(e) => setFreightUSD(e.target.value)}
-                  placeholder="Ex: 338.10"
+                  placeholder="0"
                   required
+                  className="h-8 text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="importTaxRate">Imposto (%)</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="importTaxRate" className="text-xs">Imposto (%)</Label>
                   <Input
                     id="importTaxRate"
                     type="number"
                     step="0.1"
                     value={importTaxRate}
                     onChange={(e) => setImportTaxRate(e.target.value)}
-                    placeholder="60"
+                    placeholder="40"
+                    className="h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="icmsRate">ICMS (%)</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="icmsRate" className="text-xs">ICMS (%)</Label>
                   <Input
                     id="icmsRate"
                     type="number"
                     step="0.1"
                     value={icmsRate}
                     onChange={(e) => setIcmsRate(e.target.value)}
-                    placeholder="18"
+                    placeholder="1"
+                    className="h-8 text-sm"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Observações</Label>
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-xs">Observações</Label>
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observações sobre a importação..."
-                rows={3}
+                placeholder="Compra Shopee"
+                rows={2}
+                className="text-sm resize-none"
               />
             </div>
           </CardContent>
@@ -362,39 +370,40 @@ export default function EditarImportacaoCompleta() {
 
         {/* Produtos */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Produtos</CardTitle>
-            <Button type="button" onClick={handleAddItem} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Produtos</CardTitle>
+            <Button type="button" onClick={handleAddItem} size="sm" className="h-7">
+              <Plus className="h-3 w-3 mr-1" />
               Adicionar Produto
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {items.map((item, index) => (
-                <Card key={index} className="p-4">
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-semibold">Produto {index + 1}</h4>
+                <Card key={index} className="p-2.5">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold">Produto {index + 1}</span>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-6 w-6"
                         onClick={() => handleRemoveItem(index)}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>Vincular a Produto Existente</Label>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Vincular a Produto Existente</Label>
                         <Select
                           value={item.productId}
                           onValueChange={(value) => handleItemChange(index, "productId", value)}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione (opcional)" />
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
                             {products?.map((product) => (
@@ -406,81 +415,88 @@ export default function EditarImportacaoCompleta() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Nome do Produto *</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Nome do Produto *</Label>
                         <Input
                           value={item.productName}
                           onChange={(e) => handleItemChange(index, "productName", e.target.value)}
-                          placeholder="Nome do produto"
+                          placeholder="kit beads 6 unidades"
                           required
+                          className="h-8 text-sm"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Código do Fornecedor</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Código do Fornecedor</Label>
                         <Input
                           value={item.supplierProductCode}
                           onChange={(e) => handleItemChange(index, "supplierProductCode", e.target.value)}
                           placeholder="Código usado pelo fornecedor"
+                          className="h-8 text-sm"
                         />
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <div className="space-y-2">
-                        <Label>Cor</Label>
+                    <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cor</Label>
                         <Input
                           value={item.color}
                           onChange={(e) => handleItemChange(index, "color", e.target.value)}
                           placeholder="Cor"
+                          className="h-8 text-sm"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Tamanho</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tamanho</Label>
                         <Input
                           value={item.size}
                           onChange={(e) => handleItemChange(index, "size", e.target.value)}
                           placeholder="Tamanho"
+                          className="h-8 text-sm"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Quantidade *</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Quantidade *</Label>
                         <Input
                           type="number"
                           value={item.quantity}
                           onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                          placeholder="1"
+                          placeholder="10"
                           required
+                          className="h-8 text-sm"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Preço Unit. USD *</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Preço Unit. USD *</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={item.unitPriceUSD}
                           onChange={(e) => handleItemChange(index, "unitPriceUSD", e.target.value)}
-                          placeholder="0.00"
+                          placeholder="17,84"
                           required
+                          className="h-8 text-sm"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Descrição</Label>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Descrição</Label>
                       <Textarea
                         value={item.productDescription}
                         onChange={(e) => handleItemChange(index, "productDescription", e.target.value)}
                         placeholder="Descrição do produto..."
-                        rows={2}
+                        rows={1}
+                        className="text-sm resize-none"
                       />
                     </div>
 
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground">
+                    <div className="pt-1 border-t">
+                      <p className="text-xs text-right font-semibold">
                         Total: ${((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPriceUSD) || 0)).toFixed(2)} USD
                       </p>
                     </div>
@@ -489,7 +505,7 @@ export default function EditarImportacaoCompleta() {
               ))}
 
               {items.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-6 text-xs text-muted-foreground">
                   Nenhum produto adicionado. Clique em "Adicionar Produto" para começar.
                 </div>
               )}
@@ -499,42 +515,42 @@ export default function EditarImportacaoCompleta() {
 
         {/* Resumo */}
         <Card>
-          <CardHeader>
-            <CardTitle>Resumo dos Cálculos</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Resumo dos Cálculos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <div className="flex justify-between">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Subtotal Produtos:</span>
                   <span className="font-medium">${totals.subtotalUSD.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Frete:</span>
                   <span className="font-medium">${(parseFloat(freightUSD) || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between border-t pt-3">
+                <div className="flex justify-between border-t pt-1.5 text-xs">
                   <span className="font-semibold">Total USD:</span>
                   <span className="font-bold">${totals.totalUSD.toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Total em BRL:</span>
                   <span className="font-medium">{formatCurrency(totals.totalBRL)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Imposto ({importTaxRate}%):</span>
                   <span className="font-medium">{formatCurrency(totals.importTax)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">ICMS ({icmsRate}%):</span>
                   <span className="font-medium">{formatCurrency(totals.icms)}</span>
                 </div>
-                <div className="flex justify-between border-t pt-3">
-                  <span className="font-semibold">Custo Total BRL:</span>
-                  <span className="font-bold text-lg">{formatCurrency(totals.totalCostBRL)}</span>
+                <div className="flex justify-between border-t pt-1.5">
+                  <span className="text-xs font-semibold">Custo Total BRL:</span>
+                  <span className="font-bold text-sm">{formatCurrency(totals.totalCostBRL)}</span>
                 </div>
               </div>
             </div>

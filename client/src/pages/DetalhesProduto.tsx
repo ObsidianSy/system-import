@@ -27,9 +27,13 @@ export default function DetalhesProduto() {
   const productId = params?.id;
   
   // Check URL params to determine where user came from
-  const searchParams = new URLSearchParams(location.split('?')[1]);
+  const searchParams = new URLSearchParams(window.location.search);
   const fromPage = searchParams.get('from');
   const previousPath = fromPage === 'galeria' ? '/galeria' : '/produtos';
+  
+  console.log('[DetalhesProduto] URL:', window.location.href);
+  console.log('[DetalhesProduto] fromPage:', fromPage);
+  console.log('[DetalhesProduto] previousPath:', previousPath);
 
   const { data: product, isLoading } = trpc.products.get.useQuery(
     { id: productId! },
@@ -59,7 +63,9 @@ export default function DetalhesProduto() {
     onSuccess: () => {
       toast.success("Produto deletado com sucesso!");
       utils.products.list.invalidate();
-      setLocation("/produtos");
+      const returnPath = fromPage === 'galeria' ? '/galeria' : '/produtos';
+      console.log('[DetalhesProduto] Produto deletado, voltando para:', returnPath);
+      setLocation(returnPath);
     },
     onError: (error: any) => {
       toast.error("Erro ao deletar produto: " + error.message);
@@ -87,11 +93,11 @@ export default function DetalhesProduto() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-12 w-64" />
-          <div className="grid gap-4 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid gap-3 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
             ))}
           </div>
           <Skeleton className="h-96" />
@@ -122,7 +128,10 @@ export default function DetalhesProduto() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation(previousPath)}
+            onClick={() => {
+              console.log('[DetalhesProduto] Voltando para:', previousPath);
+              setLocation(previousPath);
+            }}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -141,7 +150,13 @@ export default function DetalhesProduto() {
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setLocation(`/produtos/${product.id}/editar`)}>
+            <Button variant="outline" onClick={() => {
+              const editUrl = fromPage === 'galeria' 
+                ? `/produtos/${product.id}/editar?from=galeria` 
+                : `/produtos/${product.id}/editar`;
+              console.log('[DetalhesProduto] Navegando para edição:', editUrl);
+              setLocation(editUrl);
+            }}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
@@ -157,14 +172,14 @@ export default function DetalhesProduto() {
         </div>
 
         {/* Cards de Informações - Prioridade: Estoque Real */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Real</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Estoque Real</CardTitle>
               <Globe className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3">
+              <div className="text-xl font-bold">
                 {isLoadingStock ? (
                   <Skeleton className="h-8 w-16" />
                 ) : product.sku ? (
@@ -180,12 +195,12 @@ export default function DetalhesProduto() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Comprado</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Total Comprado</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{product.currentStock}</div>
+            <CardContent className="px-3 pb-3">
+              <div className="text-xl font-bold">{product.currentStock}</div>
               <p className="text-xs text-muted-foreground">
                 Importações registradas
               </p>
@@ -193,12 +208,12 @@ export default function DetalhesProduto() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vendas (30d)</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Vendas (30d)</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3">
+              <div className="text-xl font-bold">
                 {isLoadingProductData ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
@@ -212,12 +227,12 @@ export default function DetalhesProduto() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Status</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 pb-3">
+              <div className="text-lg font-bold">
                 {isLowStock ? (
                   <Badge variant="destructive">Crítico</Badge>
                 ) : (

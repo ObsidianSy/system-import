@@ -11,6 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -62,6 +75,8 @@ export default function NovaImportacao() {
   const [items, setItems] = useState<ImportItem[]>([
     { productName: "", quantity: 1, unitPriceUSD: 0 }
   ]);
+
+  const [openPopovers, setOpenPopovers] = useState<Record<number, boolean>>({});
 
   // Load tax rates from config
   useEffect(() => {
@@ -170,34 +185,35 @@ export default function NovaImportacao() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
+            className="h-7 w-7"
             onClick={() => setLocation("/importacoes")}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-3.5 w-3.5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Nova Importação</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-lg font-bold">Nova Importação</h1>
+            <p className="text-[10px] text-muted-foreground">
               Registre uma nova importação com cálculo automático de custos
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Dados Básicos */}
           <Card>
-            <CardHeader>
-              <CardTitle>Dados da Importação</CardTitle>
-              <CardDescription>
+            <CardHeader className="pb-2 pt-2 px-3">
+              <CardTitle className="text-sm font-semibold">Dados da Importação</CardTitle>
+              <CardDescription className="text-[10px]">
                 Informações básicas da fatura comercial
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+            <CardContent className="pt-2 px-3 pb-3 space-y-3">
+              <div className="grid gap-2 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="invoiceNumber">Número da Fatura</Label>
                   <Input
@@ -256,54 +272,190 @@ export default function NovaImportacao() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="shippingMethod">Método de Envio</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="shippingMethod" className="text-xs">Método de Envio</Label>
                   <Input
                     id="shippingMethod"
                     placeholder="Ex: DHL AIR EXPRESS"
                     value={formData.shippingMethod}
                     onChange={(e) => handleChange("shippingMethod", e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="trackingNumber">Código de Rastreio</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="trackingNumber" className="text-xs">Código de Rastreio</Label>
                   <Input
                     id="trackingNumber"
                     placeholder="Ex: 1234567890"
                     value={formData.trackingNumber}
                     onChange={(e) => handleChange("trackingNumber", e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedDelivery">Previsão de Entrega</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="estimatedDelivery" className="text-xs">Previsão de Entrega</Label>
                   <Input
                     id="estimatedDelivery"
                     type="date"
                     value={formData.estimatedDelivery}
                     onChange={(e) => handleChange("estimatedDelivery", e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="paymentMethod">Método de Pagamento</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="paymentMethod" className="text-xs">Método de Pagamento</Label>
                   <Input
                     id="paymentMethod"
                     placeholder="Ex: Mercado Pago"
                     value={formData.paymentMethod}
                     onChange={(e) => handleChange("paymentMethod", e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="transactionNumber">Nº da Transação</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="transactionNumber" className="text-xs">Nº da Transação</Label>
                   <Input
                     id="transactionNumber"
                     placeholder="Ex: 2288021022025..."
                     value={formData.transactionNumber}
                     onChange={(e) => handleChange("transactionNumber", e.target.value)}
+                    className="h-8 text-sm"
                   />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Custos e Impostos */}
+          <Card>
+            <CardHeader className="pb-2 pt-2 px-3">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                <Calculator className="h-4 w-4" />
+                Cálculo de Custos e Impostos
+              </CardTitle>
+              <CardDescription className="text-[10px]">
+                Configure a taxa de câmbio, frete e impostos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-2 px-3 pb-3">
+              <div className="grid gap-3 grid-cols-2">
+                {/* Lado Esquerdo - Inputs em 2 colunas */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="exchangeRate" className="text-xs">Taxa de Câmbio (USD → BRL) *</Label>
+                    <Input
+                      id="exchangeRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.exchangeRate}
+                      onChange={(e) => handleChange("exchangeRate", parseFloat(e.target.value) || 0)}
+                      required
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="freightUSD" className="text-xs">Frete (USD)</Label>
+                    <Input
+                      id="freightUSD"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.freightUSD}
+                      onChange={(e) => handleChange("freightUSD", parseFloat(e.target.value) || 0)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="importTaxRate" className="text-xs">Imposto de Importação (%)</Label>
+                    <Input
+                      id="importTaxRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.importTaxRate}
+                      onChange={(e) => handleChange("importTaxRate", parseFloat(e.target.value) || 0)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="icmsRate" className="text-xs">ICMS (%)</Label>
+                    <Input
+                      id="icmsRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.icmsRate}
+                      onChange={(e) => handleChange("icmsRate", parseFloat(e.target.value) || 0)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1 col-span-2">
+                    <Label htmlFor="otherTaxes" className="text-xs">Outras Taxas (BRL)</Label>
+                    <Input
+                      id="otherTaxes"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.otherTaxes}
+                      onChange={(e) => handleChange("otherTaxes", parseFloat(e.target.value) || 0)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Lado Direito - Resumo de Custos */}
+                <div className="border-l pl-3">
+                  <h4 className="text-xs font-semibold mb-2">Resumo de Custos</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Subtotal Produtos (USD):</span>
+                      <span className="font-medium">${subtotalUSD.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Frete (USD):</span>
+                      <span className="font-medium">${formData.freightUSD.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] font-semibold pb-2 border-b">
+                      <span>Total (USD):</span>
+                      <span>${totalUSD.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between text-[10px] pt-2">
+                      <span className="text-muted-foreground">Subtotal (BRL):</span>
+                      <span className="font-medium">{formatCurrency(subtotalBRL)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Frete (BRL):</span>
+                      <span className="font-medium">{formatCurrency(freightBRL)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Imp. Importação:</span>
+                      <span className="font-medium">{formatCurrency(importTax)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">ICMS:</span>
+                      <span className="font-medium">{formatCurrency(icms)}</span>
+                    </div>
+                    {formData.otherTaxes > 0 && (
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-muted-foreground">Outras Taxas:</span>
+                        <span className="font-medium">{formatCurrency(formData.otherTaxes)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-bold pt-2 border-t mt-2">
+                      <span>Custo Total (BRL):</span>
+                      <span className="text-primary">{formatCurrency(totalCostBRL)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -311,27 +463,26 @@ export default function NovaImportacao() {
 
           {/* Produtos */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2 pt-2 px-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Produtos da Importação</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-sm font-semibold">Produtos da Importação</CardTitle>
+                  <CardDescription className="text-[10px]">
                     Adicione os produtos desta importação
                   </CardDescription>
                 </div>
-                <Button type="button" onClick={addItem} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button type="button" onClick={addItem} size="sm" className="h-7 text-xs">
+                  <Plus className="h-3 w-3 mr-1" />
                   Adicionar Produto
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2 px-3 pb-3">
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[300px]">Produto</TableHead>
-                      <TableHead className="w-[150px]">Cor/Variação</TableHead>
+                      <TableHead className="w-[400px]">Produto</TableHead>
                       <TableHead className="w-[100px]">Qtd</TableHead>
                       <TableHead className="w-[120px]">Preço Unit. (USD)</TableHead>
                       <TableHead className="w-[120px]">Total (USD)</TableHead>
@@ -342,34 +493,48 @@ export default function NovaImportacao() {
                     {items.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell>
-                          <Select
-                            value={item.productId || ""}
-                            onValueChange={(value) => selectProduct(index, value)}
+                          <Popover 
+                            open={openPopovers[index]} 
+                            onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [index]: open }))}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecionar produto existente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products?.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.sku || product.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            placeholder="Ou digite o nome do produto"
-                            value={item.productName}
-                            onChange={(e) => updateItem(index, "productName", e.target.value)}
-                            className="mt-2"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            placeholder="Ex: Vermelho"
-                            value={item.color || ""}
-                            onChange={(e) => updateItem(index, "color", e.target.value)}
-                          />
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between h-8 text-xs font-normal"
+                              >
+                                {item.productName || "Selecione um produto..."}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Buscar produto..." className="h-8 text-xs" />
+                                <CommandList>
+                                  <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">Nenhum produto encontrado.</CommandEmpty>
+                                  <CommandGroup>
+                                    {products?.map((product) => (
+                                      <CommandItem
+                                        key={product.id}
+                                        value={`${product.sku} ${product.name}`}
+                                        onSelect={() => {
+                                          selectProduct(index, product.id);
+                                          setOpenPopovers(prev => ({ ...prev, [index]: false }));
+                                        }}
+                                        className="text-xs"
+                                      >
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{product.name}</span>
+                                          {product.sku && (
+                                            <span className="text-[10px] text-muted-foreground">SKU: {product.sku}</span>
+                                          )}
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </TableCell>
                         <TableCell>
                           <Input
@@ -377,6 +542,7 @@ export default function NovaImportacao() {
                             min="1"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 1)}
+                            className="h-8 text-xs"
                           />
                         </TableCell>
                         <TableCell>
@@ -386,9 +552,10 @@ export default function NovaImportacao() {
                             min="0"
                             value={item.unitPriceUSD}
                             onChange={(e) => updateItem(index, "unitPriceUSD", parseFloat(e.target.value) || 0)}
+                            className="h-8 text-xs"
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="text-xs font-medium">
                           ${(item.quantity * item.unitPriceUSD).toFixed(2)}
                         </TableCell>
                         <TableCell>
@@ -396,10 +563,11 @@ export default function NovaImportacao() {
                             type="button"
                             variant="ghost"
                             size="icon"
+                            className="h-7 w-7"
                             onClick={() => removeItem(index)}
                             disabled={items.length === 1}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -410,157 +578,33 @@ export default function NovaImportacao() {
             </CardContent>
           </Card>
 
-          {/* Custos e Impostos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                Cálculo de Custos e Impostos
-              </CardTitle>
-              <CardDescription>
-                Configure a taxa de câmbio, frete e impostos
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="space-y-2">
-                  <Label htmlFor="exchangeRate">Taxa de Câmbio (USD → BRL) *</Label>
-                  <Input
-                    id="exchangeRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.exchangeRate}
-                    onChange={(e) => handleChange("exchangeRate", parseFloat(e.target.value) || 0)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="freightUSD">Frete (USD)</Label>
-                  <Input
-                    id="freightUSD"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.freightUSD}
-                    onChange={(e) => handleChange("freightUSD", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="importTaxRate">Imposto de Importação (%)</Label>
-                  <Input
-                    id="importTaxRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.importTaxRate}
-                    onChange={(e) => handleChange("importTaxRate", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="icmsRate">ICMS (%)</Label>
-                  <Input
-                    id="icmsRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.icmsRate}
-                    onChange={(e) => handleChange("icmsRate", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-4">
-                  <Label htmlFor="otherTaxes">Outras Taxas (BRL)</Label>
-                  <Input
-                    id="otherTaxes"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.otherTaxes}
-                    onChange={(e) => handleChange("otherTaxes", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-
-              {/* Resumo de Custos */}
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-4">Resumo de Custos</h4>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal Produtos (USD):</span>
-                      <span className="font-medium">${subtotalUSD.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Frete (USD):</span>
-                      <span className="font-medium">${formData.freightUSD.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-semibold">
-                      <span>Total (USD):</span>
-                      <span>${totalUSD.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal (BRL):</span>
-                      <span className="font-medium">{formatCurrency(subtotalBRL)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Frete (BRL):</span>
-                      <span className="font-medium">{formatCurrency(freightBRL)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Imposto de Importação:</span>
-                      <span className="font-medium">{formatCurrency(importTax)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">ICMS:</span>
-                      <span className="font-medium">{formatCurrency(icms)}</span>
-                    </div>
-                    {formData.otherTaxes > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Outras Taxas:</span>
-                        <span className="font-medium">{formatCurrency(formData.otherTaxes)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-base font-bold pt-2 border-t">
-                      <span>Custo Total (BRL):</span>
-                      <span className="text-primary">{formatCurrency(totalCostBRL)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Observações */}
           <Card>
-            <CardHeader>
-              <CardTitle>Observações</CardTitle>
+            <CardHeader className="pb-2 pt-2 px-3">
+              <CardTitle className="text-sm font-semibold">Observações</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2 px-3 pb-3">
               <Textarea
                 placeholder="Observações adicionais sobre esta importação..."
                 value={formData.notes}
                 onChange={(e) => handleChange("notes", e.target.value)}
-                rows={4}
+                rows={2}
+                className="text-xs resize-none"
               />
             </CardContent>
           </Card>
 
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 justify-end">
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="h-8 text-xs"
               onClick={() => setLocation("/importacoes")}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={createImportation.isPending}>
+            <Button type="submit" disabled={createImportation.isPending} size="sm" className="h-8 text-xs">
               {createImportation.isPending ? "Salvando..." : "Salvar Importação"}
             </Button>
           </div>
