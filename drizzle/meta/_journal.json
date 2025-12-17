@@ -50,6 +50,13 @@
       "when": 1763648354243,
       "tag": "0006_dazzling_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1765994026021,
+      "tag": "0007_zippy_peter_parker",
+      "breakpoints": true
     }
   ]
 }

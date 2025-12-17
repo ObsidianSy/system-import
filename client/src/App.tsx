@@ -26,6 +26,7 @@ import Galeria from "./pages/Galeria";
 import Pedidos from "./pages/Pedidos";
 import Login from "./pages/Login";
 import Usuarios from "./pages/Usuarios";
+import ConfiguracoesUsuarios from "./pages/ConfiguracoesUsuarios";
 import VendasExternas from "./pages/VendasExternas";
 
 function Router() {
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/estoque" component={Estoque} />
       <Route path="/relatorios" component={Relatorios} />
       <Route path="/configuracoes" component={Configuracoes} />
+      <Route path="/configuracoes/usuarios" component={ConfiguracoesUsuarios} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

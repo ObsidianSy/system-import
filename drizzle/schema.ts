@@ -11,6 +11,13 @@ export const users = pgTable("users", {
   loginMethod: text("loginMethod"),
   role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
+  // Permissões
+  canViewCostUSD: boolean("canViewCostUSD").default(false).notNull(),
+  canViewCostBRL: boolean("canViewCostBRL").default(false).notNull(),
+  canViewImportTaxes: boolean("canViewImportTaxes").default(false).notNull(),
+  canEditProducts: boolean("canEditProducts").default(false).notNull(),
+  canEditImportations: boolean("canEditImportations").default(false).notNull(),
+  canManageUsers: boolean("canManageUsers").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),

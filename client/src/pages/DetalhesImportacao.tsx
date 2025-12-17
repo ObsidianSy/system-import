@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
@@ -35,6 +36,7 @@ export default function DetalhesImportacao() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/importacoes/:id");
   const importationId = params?.id;
+  const { canViewCostUSD, canViewCostBRL, canViewImportTaxes, canEditImportations } = usePermissions();
 
   const { data: importation, isLoading } = trpc.importations.get.useQuery(
     { id: importationId! },
@@ -113,11 +115,17 @@ export default function DetalhesImportacao() {
               size="sm"
               className="h-7 text-xs"
               onClick={() => setLocation(`/importacoes/${importationId}/editar`)}
+              disabled={!canEditImportations}
             >
               <CheckCircle className="h-3 w-3 mr-1" />
               Gerenciar Status
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}>
+            <Button 
+              size="sm" 
+              className="h-7 text-xs" 
+              onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}
+              disabled={!canEditImportations}
+            >
               <Edit2 className="h-3 w-3 mr-1" />
               Editar Valores
             </Button>
@@ -126,52 +134,58 @@ export default function DetalhesImportacao() {
 
         {/* Cards de Resumo */}
         <div className="grid gap-1.5 grid-cols-2 md:grid-cols-4">
-          <Card>
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total USD</p>
-                  <p className="text-base font-bold">${importation.totalUSD.toFixed(2)}</p>
-                  <p className="text-[9px] text-muted-foreground truncate">
-                    Prod ${importation.subtotalUSD.toFixed(2)} + Frete ${importation.freightUSD.toFixed(2)}
-                  </p>
+          {canViewCostUSD && (
+            <Card>
+              <CardContent className="p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total USD</p>
+                    <p className="text-base font-bold">${importation.totalUSD.toFixed(2)}</p>
+                    <p className="text-[9px] text-muted-foreground truncate">
+                      Prod ${importation.subtotalUSD.toFixed(2)} + Frete ${importation.freightUSD.toFixed(2)}
+                    </p>
+                  </div>
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
-                <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card>
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Custo Total BRL</p>
-                  <p className="text-sm font-bold text-green-600">{formatCurrency(importation.totalCostBRL)}</p>
-                  <p className="text-[9px] text-muted-foreground">
-                    Câmbio R$ {importation.exchangeRate.toFixed(2)}
-                  </p>
+          {canViewCostBRL && (
+            <Card>
+              <CardContent className="p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Custo Total BRL</p>
+                    <p className="text-sm font-bold text-green-600">{formatCurrency(importation.totalCostBRL)}</p>
+                    <p className="text-[9px] text-muted-foreground">
+                      Câmbio R$ {importation.exchangeRate.toFixed(2)}
+                    </p>
+                  </div>
+                  <TrendingUp className="h-4 w-4 text-green-600 shrink-0" />
                 </div>
-                <TrendingUp className="h-4 w-4 text-green-600 shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card>
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Impostos</p>
-                  <p className="text-sm font-bold">
-                    {formatCurrency(importation.importTax + importation.icms)}
-                  </p>
-                  <p className="text-[9px] text-muted-foreground truncate">
-                    II R$ {(importation.importTax/1000).toFixed(1)}k + ICMS R$ {(importation.icms/1000).toFixed(1)}k
-                  </p>
+          {canViewImportTaxes && (
+            <Card>
+              <CardContent className="p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Impostos</p>
+                    <p className="text-sm font-bold">
+                      {formatCurrency(importation.importTax + importation.icms)}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground truncate">
+                      II R$ {(importation.importTax/1000).toFixed(1)}k + ICMS R$ {(importation.icms/1000).toFixed(1)}k
+                    </p>
+                  </div>
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="p-2">
@@ -301,10 +315,10 @@ export default function DetalhesImportacao() {
                   <TableHead>Produto</TableHead>
                   <TableHead>Variação</TableHead>
                   <TableHead className="text-right">Quantidade</TableHead>
-                  <TableHead className="text-right">Preço Unit. (USD)</TableHead>
-                  <TableHead className="text-right">Total (USD)</TableHead>
-                  <TableHead className="text-right">Custo Unit. (BRL)</TableHead>
-                  <TableHead className="text-right">Custo Total (BRL)</TableHead>
+                  {canViewCostUSD && <TableHead className="text-right">Preço Unit. (USD)</TableHead>}
+                  {canViewCostUSD && <TableHead className="text-right">Total (USD)</TableHead>}
+                  {canViewCostBRL && <TableHead className="text-right">Custo Unit. (BRL)</TableHead>}
+                  {canViewCostBRL && <TableHead className="text-right">Custo Total (BRL)</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -331,12 +345,14 @@ export default function DetalhesImportacao() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">${item.unitPriceUSD.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-medium">${item.totalUSD.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unitCostBRL)}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(item.totalCostBRL)}
-                    </TableCell>
+                    {canViewCostUSD && <TableCell className="text-right">${item.unitPriceUSD.toFixed(2)}</TableCell>}
+                    {canViewCostUSD && <TableCell className="text-right font-medium">${item.totalUSD.toFixed(2)}</TableCell>}
+                    {canViewCostBRL && <TableCell className="text-right">{formatCurrency(item.unitCostBRL)}</TableCell>}
+                    {canViewCostBRL && (
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(item.totalCostBRL)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

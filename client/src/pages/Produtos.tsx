@@ -34,12 +34,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Produtos() {
   const [, setLocation] = useLocation();
   const { data: products, isLoading } = trpc.products.list.useQuery();
   const { data: currentOrder } = trpc.orders.current.useQuery();
   const utils = trpc.useUtils();
+  const { canViewCostBRL, canEditProducts } = usePermissions();
 
   // Extract SKUs and fetch external stock
   const productsWithSkus = useMemo(() => 
@@ -269,7 +271,10 @@ export default function Produtos() {
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button onClick={() => setLocation("/produtos/novo")}>
+            <Button 
+              onClick={() => setLocation("/produtos/novo")}
+              disabled={!canEditProducts}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
             </Button>
@@ -326,19 +331,21 @@ export default function Produtos() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Valor</p>
-                  <p className="text-sm font-bold text-green-600 mt-0.5">
-                    {formatCurrency(stats.totalValue)}
+          {canViewCostBRL && (
+            <Card>
+              <CardContent className="p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Valor</p>
+                    <p className="text-sm font-bold text-green-600 mt-0.5">
+                      {formatCurrency(stats.totalValue)}
                   </p>
                 </div>
                 <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
 
         {/* Filtros e Busca - Inline sem Card */}
@@ -516,6 +523,7 @@ export default function Produtos() {
                                 e.stopPropagation();
                                 setLocation(`/produtos/${product.id}/editar`);
                               }}
+                              disabled={!canEditProducts}
                             >
                               <Edit className="h-4 w-4 mr-2" />
                               Editar
@@ -524,6 +532,7 @@ export default function Produtos() {
                             <DropdownMenuItem
                               onClick={(e) => handleDelete(e as any, product.id, product.name)}
                               className="text-destructive focus:text-destructive"
+                              disabled={!canEditProducts}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Excluir
@@ -692,6 +701,7 @@ export default function Produtos() {
                                   e.stopPropagation();
                                   setLocation(`/produtos/${product.id}/editar`);
                                 }}
+                                disabled={!canEditProducts}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
                                 Editar
@@ -700,6 +710,7 @@ export default function Produtos() {
                               <DropdownMenuItem
                                 onClick={(e) => handleDelete(e as any, product.id, product.name)}
                                 className="text-destructive focus:text-destructive"
+                                disabled={!canEditProducts}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Excluir

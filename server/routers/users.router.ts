@@ -63,6 +63,13 @@ export const usersRouter = router({
         role: input.role,
         loginMethod: "password",
         isActive: true,
+        // Permissões padrão baseadas no role
+        canViewCostUSD: input.role === "admin",
+        canViewCostBRL: input.role === "admin",
+        canViewImportTaxes: input.role === "admin",
+        canEditProducts: input.role === "admin",
+        canEditImportations: input.role === "admin",
+        canManageUsers: input.role === "admin",
       });
     }),
 
@@ -129,5 +136,29 @@ export const usersRouter = router({
       await db.updateUser(ctx.user.id, { password: hashedPassword });
 
       return { success: true };
+    }),
+
+  // Atualizar permissões de usuário
+  updatePermissions: protectedProcedure
+    .input(z.object({
+      userId: z.string(),
+      permissions: z.object({
+        canViewCostUSD: z.boolean().optional(),
+        canViewCostBRL: z.boolean().optional(),
+        canViewImportTaxes: z.boolean().optional(),
+        canEditProducts: z.boolean().optional(),
+        canEditImportations: z.boolean().optional(),
+        canManageUsers: z.boolean().optional(),
+      }),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user?.role !== "admin") {
+        throw new Error("Apenas administradores podem alterar permissões");
+      }
+
+      return db.updateUser(input.userId, {
+        ...input.permissions,
+        updatedAt: new Date(),
+      });
     }),
 });

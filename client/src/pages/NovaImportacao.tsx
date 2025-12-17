@@ -37,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ImportItem {
   productId?: string;
@@ -53,6 +54,7 @@ export default function NovaImportacao() {
   const { data: suppliers } = trpc.suppliers.list.useQuery();
   const { data: products } = trpc.products.list.useQuery();
   const { data: taxConfig } = trpc.taxConfig.getActive.useQuery();
+  const { canViewCostUSD, canViewCostBRL, canViewImportTaxes, canEditImportations } = usePermissions();
 
   const [formData, setFormData] = useState({
     invoiceNumber: "",
@@ -356,6 +358,7 @@ export default function NovaImportacao() {
                       onChange={(e) => handleChange("exchangeRate", parseFloat(e.target.value) || 0)}
                       required
                       className="h-8 text-sm"
+                      disabled={!canViewCostBRL}
                     />
                   </div>
 
@@ -369,6 +372,7 @@ export default function NovaImportacao() {
                       value={formData.freightUSD}
                       onChange={(e) => handleChange("freightUSD", parseFloat(e.target.value) || 0)}
                       className="h-8 text-sm"
+                      disabled={!canViewCostUSD}
                     />
                   </div>
 
@@ -382,6 +386,7 @@ export default function NovaImportacao() {
                       value={formData.importTaxRate}
                       onChange={(e) => handleChange("importTaxRate", parseFloat(e.target.value) || 0)}
                       className="h-8 text-sm"
+                      disabled={!canViewImportTaxes}
                     />
                   </div>
 
@@ -395,6 +400,7 @@ export default function NovaImportacao() {
                       value={formData.icmsRate}
                       onChange={(e) => handleChange("icmsRate", parseFloat(e.target.value) || 0)}
                       className="h-8 text-sm"
+                      disabled={!canViewImportTaxes}
                     />
                   </div>
 
@@ -408,6 +414,7 @@ export default function NovaImportacao() {
                       value={formData.otherTaxes}
                       onChange={(e) => handleChange("otherTaxes", parseFloat(e.target.value) || 0)}
                       className="h-8 text-sm"
+                      disabled={!canViewImportTaxes}
                     />
                   </div>
                 </div>
@@ -416,45 +423,62 @@ export default function NovaImportacao() {
                 <div className="border-l pl-3">
                   <h4 className="text-xs font-semibold mb-2">Resumo de Custos</h4>
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Subtotal Produtos (USD):</span>
-                      <span className="font-medium">${subtotalUSD.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Frete (USD):</span>
-                      <span className="font-medium">${formData.freightUSD.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] font-semibold pb-2 border-b">
-                      <span>Total (USD):</span>
-                      <span>${totalUSD.toFixed(2)}</span>
-                    </div>
+                    {canViewCostUSD && (
+                      <>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Subtotal Produtos (USD):</span>
+                          <span className="font-medium">${subtotalUSD.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Frete (USD):</span>
+                          <span className="font-medium">${formData.freightUSD.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-semibold pb-2 border-b">
+                          <span>Total (USD):</span>
+                          <span>${totalUSD.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
                     
-                    <div className="flex justify-between text-[10px] pt-2">
-                      <span className="text-muted-foreground">Subtotal (BRL):</span>
-                      <span className="font-medium">{formatCurrency(subtotalBRL)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Frete (BRL):</span>
-                      <span className="font-medium">{formatCurrency(freightBRL)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Imp. Importação:</span>
-                      <span className="font-medium">{formatCurrency(importTax)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">ICMS:</span>
-                      <span className="font-medium">{formatCurrency(icms)}</span>
-                    </div>
-                    {formData.otherTaxes > 0 && (
+                    {canViewCostBRL && (
+                      <>
+                        <div className="flex justify-between text-[10px] pt-2">
+                          <span className="text-muted-foreground">Subtotal (BRL):</span>
+                          <span className="font-medium">{formatCurrency(subtotalBRL)}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Frete (BRL):</span>
+                          <span className="font-medium">{formatCurrency(freightBRL)}</span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {canViewImportTaxes && (
+                      <>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Imp. Importação:</span>
+                          <span className="font-medium">{formatCurrency(importTax)}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">ICMS:</span>
+                          <span className="font-medium">{formatCurrency(icms)}</span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {formData.otherTaxes > 0 && canViewImportTaxes && (
                       <div className="flex justify-between text-[10px]">
                         <span className="text-muted-foreground">Outras Taxas:</span>
                         <span className="font-medium">{formatCurrency(formData.otherTaxes)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm font-bold pt-2 border-t mt-2">
-                      <span>Custo Total (BRL):</span>
-                      <span className="text-primary">{formatCurrency(totalCostBRL)}</span>
-                    </div>
+                    
+                    {canViewCostBRL && (
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t mt-2">
+                        <span>Custo Total (BRL):</span>
+                        <span className="text-primary">{formatCurrency(totalCostBRL)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -484,8 +508,8 @@ export default function NovaImportacao() {
                     <TableRow>
                       <TableHead className="w-[400px]">Produto</TableHead>
                       <TableHead className="w-[100px]">Qtd</TableHead>
-                      <TableHead className="w-[120px]">Preço Unit. (USD)</TableHead>
-                      <TableHead className="w-[120px]">Total (USD)</TableHead>
+                      {canViewCostUSD && <TableHead className="w-[120px]">Preço Unit. (USD)</TableHead>}
+                      {canViewCostUSD && <TableHead className="w-[120px]">Total (USD)</TableHead>}
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -545,19 +569,23 @@ export default function NovaImportacao() {
                             className="h-8 text-xs"
                           />
                         </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.unitPriceUSD}
-                            onChange={(e) => updateItem(index, "unitPriceUSD", parseFloat(e.target.value) || 0)}
-                            className="h-8 text-xs"
-                          />
-                        </TableCell>
-                        <TableCell className="text-xs font-medium">
-                          ${(item.quantity * item.unitPriceUSD).toFixed(2)}
-                        </TableCell>
+                        {canViewCostUSD && (
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.unitPriceUSD}
+                              onChange={(e) => updateItem(index, "unitPriceUSD", parseFloat(e.target.value) || 0)}
+                              className="h-8 text-xs"
+                            />
+                          </TableCell>
+                        )}
+                        {canViewCostUSD && (
+                          <TableCell className="text-xs font-medium">
+                            ${(item.quantity * item.unitPriceUSD).toFixed(2)}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Button
                             type="button"
