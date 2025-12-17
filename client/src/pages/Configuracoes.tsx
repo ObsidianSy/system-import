@@ -8,8 +8,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
+import { Users, ChevronRight } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Configuracoes() {
+  const [, setLocation] = useLocation();
+  const { isAdmin } = usePermissions();
   const { data: taxConfig, isLoading } = trpc.taxConfig.getActive.useQuery();
   const utils = trpc.useUtils();
   
@@ -55,6 +60,29 @@ export default function Configuracoes() {
             Configure as taxas de importação e impostos
           </p>
         </div>
+
+        {/* Card de Gerenciamento de Usuários (apenas admin) */}
+        {isAdmin && (
+          <Card 
+            className="cursor-pointer hover:bg-accent transition-colors"
+            onClick={() => setLocation("/configuracoes/usuarios")}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Users className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">Gerenciar Usuários e Permissões</CardTitle>
+                    <CardDescription>
+                      Configure acessos e permissões dos usuários do sistema
+                    </CardDescription>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>

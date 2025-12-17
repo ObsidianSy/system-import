@@ -58,7 +58,7 @@ const menuItems = [
   { icon: TrendingUp, label: "Estoque", path: "/estoque" },
   { icon: BarChart3, label: "Relat\u00f3rios", path: "/relatorios" },
   { icon: Settings, label: "Configura\u00e7\u00f5es", path: "/configuracoes" },
-  { icon: ShieldCheck, label: "Usu\u00e1rios", path: "/usuarios", adminOnly: true },
+  { icon: ShieldCheck, label: "Usu\u00e1rios", path: "/configuracoes/usuarios", adminOnly: true },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

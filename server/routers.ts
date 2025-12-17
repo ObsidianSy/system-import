@@ -148,6 +148,23 @@ export const appRouter = router({
 
         const hashedPassword = await bcrypt.hash(input.password, 10);
 
+        // Set permissions based on role
+        const permissions = input.role === "admin" ? {
+          canViewCostUSD: true,
+          canViewCostBRL: true,
+          canViewImportTaxes: true,
+          canEditProducts: true,
+          canEditImportations: true,
+          canManageUsers: true,
+        } : {
+          canViewCostUSD: false,
+          canViewCostBRL: false,
+          canViewImportTaxes: false,
+          canEditProducts: false,
+          canEditImportations: false,
+          canManageUsers: false,
+        };
+
         return db.createUser({
           id: generateId(),
           name: input.name,
@@ -156,6 +173,7 @@ export const appRouter = router({
           role: input.role,
           loginMethod: "password",
           isActive: true,
+          ...permissions,
         });
       }),
 
@@ -222,6 +240,45 @@ export const appRouter = router({
         await db.updateUser(ctx.user.id, { password: hashedPassword });
 
         return { success: true };
+      }),
+
+    updatePermissions: protectedProcedure
+      .input(z.object({
+        userId: z.string(),
+        permissions: z.object({
+          canViewCostUSD: z.boolean(),
+          canViewCostBRL: z.boolean(),
+          canViewImportTaxes: z.boolean(),
+          canEditProducts: z.boolean(),
+          canEditImportations: z.boolean(),
+          canManageUsers: z.boolean(),
+        }),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new Error("Apenas administradores podem alterar permissões");
+        }
+
+        const updatedUser = await db.updateUser(input.userId, input.permissions);
+        
+        // Return user without password
+        const { password, ...userWithoutPassword } = updatedUser;
+        return userWithoutPassword;
+      }),
+
+    toggleActive: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new Error("Apenas administradores podem ativar/desativar usuários");
+        }
+
+        const user = await db.getUser(input.id);
+        if (!user) {
+          throw new Error("Usuário não encontrado");
+        }
+
+        return db.updateUser(input.id, { isActive: !user.isActive });
       }),
   }),
 
