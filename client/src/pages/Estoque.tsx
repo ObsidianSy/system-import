@@ -61,8 +61,8 @@ export default function Estoque() {
   // Helper function to get real stock
   const getRealStock = (product: any) => {
     return product.sku && externalStockMap.has(product.sku)
-      ? (externalStockMap.get(product.sku) ?? product.currentStock)
-      : product.currentStock;
+      ? (externalStockMap.get(product.sku) ?? 0)
+      : 0;
   };
 
   const lowStockProducts = products?.filter(p => getRealStock(p) <= (p.minStock ?? 0)) || [];

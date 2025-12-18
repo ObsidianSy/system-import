@@ -767,9 +767,10 @@ export default function Galeria() {
         {filteredProducts && filteredProducts.length > 0 ? (
           <div className={`grid ${getGridClass()} gap-4`}>
             {filteredProducts.map((product) => {
+              // Sempre usar o estoque real da API externa se tiver SKU
               const realStock = product.sku 
-                ? getStock(product.sku, product.currentStock)
-                : product.currentStock;
+                ? getStock(product.sku)  // Remove o fallback para currentStock
+                : 0;  // Se não tiver SKU, considera 0
               const isLowStock = realStock <= (product.minStock || 0) && realStock > 0;
               const isOutOfStock = realStock === 0;
 
@@ -867,11 +868,11 @@ export default function Galeria() {
                     <div className="absolute top-12 right-2">
                       {isOutOfStock ? (
                         <Badge variant="destructive" className="shadow-lg backdrop-blur-sm">
-                          Esgotado
+                          Esgotado (0 un)
                         </Badge>
                       ) : isLowStock ? (
                         <Badge variant="outline" className="bg-yellow-500/90 text-white border-yellow-600 shadow-lg backdrop-blur-sm">
-                          Baixo
+                          Baixo ({realStock} un)
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-green-500/90 text-white border-green-600 shadow-lg backdrop-blur-sm">

@@ -18,6 +18,7 @@ import { DollarSign, TrendingUp, Package, Calendar, Filter, X, Percent, Truck, S
 import { useState, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLocation } from "wouter";
+import { useExternalStock } from "@/_core/hooks/useExternalStock";
 import {
   BarChart,
   Bar,
@@ -42,6 +43,10 @@ export default function Relatorios() {
   const { data: products, isLoading: loadingProducts } = trpc.products.list.useQuery();
   const { data: suppliers, isLoading: loadingSuppliers } = trpc.suppliers.list.useQuery();
   const { canViewCostBRL, canViewCostUSD } = usePermissions();
+  
+  // Buscar estoque real da API externa
+  const allSkus = useMemo(() => products?.filter(p => p.sku).map(p => p.sku!) || [], [products]);
+  const { getStock } = useExternalStock(allSkus, { enabled: allSkus.length > 0 });
   
   // Filtros de data
   const [startDate, setStartDate] = useState("");
@@ -80,13 +85,17 @@ export default function Relatorios() {
     });
   }, [importations, startDate, endDate]);
 
-  // Calcular estatísticas de Estoque (Atual - não depende de filtro de data)
+  // Calcular estatísticas de Estoque REAL (usando API externa)
   const stockStats = useMemo(() => {
     if (!products) return { totalValue: 0, totalQuantity: 0, averageUnitCost: 0 };
     const stats = products.reduce((acc, product) => {
+      // Usar estoque REAL da API externa, não currentStock
+      const realStock = product.sku ? getStock(product.sku) : 0;
+      const salePriceBRL = (product.salePriceBRL || 0) / 100;
+      
       return {
-        totalValue: acc.totalValue + (product.currentStock * ((product.averageCostBRL || 0) / 100)),
-        totalQuantity: acc.totalQuantity + product.currentStock
+        totalValue: acc.totalValue + (realStock * salePriceBRL),
+        totalQuantity: acc.totalQuantity + realStock
       };
     }, { totalValue: 0, totalQuantity: 0 });
 
@@ -94,7 +103,7 @@ export default function Relatorios() {
       ...stats,
       averageUnitCost: stats.totalQuantity > 0 ? stats.totalValue / stats.totalQuantity : 0
     };
-  }, [products]);
+  }, [products, getStock]);
 
   // Calcular estatísticas de Importação (Filtradas)
   const importStats = useMemo(() => {
@@ -169,27 +178,25 @@ export default function Relatorios() {
       .slice(0, 10);
   }, [filteredImportations]);
 
-  // Métricas de vendas para usuários (baseado em quantidade comprada vs estoque atual)
+  // Métricas de vendas para usuários (baseado em estoque real da API)
   const salesMetrics = useMemo(() => {
     if (!products) return { mostSold: [], leastSold: [] };
     
     const productsWithSales = products
       .map(product => {
-        const totalPurchased = product.currentStock; // Isso é o total comprado registrado
-        // Assumindo que vendas = total comprado - estoque atual no sistema externo
-        // Mas como não temos essa info, vamos usar a lógica de que quanto menor o estoque atual
-        // em relação ao mínimo, mais está vendendo
+        const realStock = product.sku ? getStock(product.sku) : 0;
+        // Calcular performance baseado no estoque real
         const salesRate = product.minStock && product.minStock > 0
-          ? (product.currentStock / product.minStock)
-          : product.currentStock;
+          ? (realStock / product.minStock)
+          : realStock;
         
         return {
           id: product.id,
           name: product.name,
           sku: product.sku,
           imageUrl: product.imageUrl,
-          totalPurchased: product.currentStock,
-          currentStock: product.currentStock,
+          totalPurchased: realStock,
+          currentStock: realStock,
           minStock: product.minStock ?? 0,
           salesRate,
           category: product.category,
@@ -279,6 +286,65 @@ export default function Relatorios() {
           )}
         </div>
 
+        {/* Resumo Executivo - Duas Colunas */}
+        {canViewCostBRL && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Coluna Esquerda: Total Importado */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  Total Importado
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor Total (BRL)</p>
+                  <p className="text-3xl font-bold text-blue-600">{formatCurrency(importStats.totalBRL)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Com impostos e frete inclusos
+                  </p>
+                </div>
+                <div className="pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">Valor Total (USD)</p>
+                  <p className="text-2xl font-bold text-blue-500">${importStats.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                </div>
+                <div className="pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">Unidades Importadas</p>
+                  <p className="text-2xl font-bold">{importStats.totalUnits.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Coluna Direita: Estoque Real */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="h-5 w-5 text-green-600" />
+                  Estoque Real Atual
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor do Estoque</p>
+                  <p className="text-3xl font-bold text-green-600">{formatCurrency(stockStats.totalValue)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Baseado no estoque disponível
+                  </p>
+                </div>
+                <div className="pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">Unidades Disponíveis</p>
+                  <p className="text-2xl font-bold text-green-500">{stockStats.totalQuantity.toLocaleString()}</p>
+                </div>
+                <div className="pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">Custo Médio Unitário</p>
+                  <p className="text-2xl font-bold text-purple-600">{formatCurrency(stockStats.averageUnitCost)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Dashboard para Usuários sem Permissão de Custos */}
         {!canViewCostBRL && (
           <div className="space-y-6">
@@ -317,7 +383,10 @@ export default function Relatorios() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-destructive">
-                    {products?.filter(p => p.currentStock <= (p.minStock ?? 0)).length || 0}
+                    {products?.filter(p => {
+                      const realStock = p.sku ? getStock(p.sku) : 0;
+                      return realStock <= (p.minStock ?? 0) && realStock > 0;
+                    }).length || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Produtos com baixo estoque

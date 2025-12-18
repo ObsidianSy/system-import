@@ -6,12 +6,13 @@ import { StockBadge, StockDisplay } from "@/components/ui/stock-badge";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe, Tag, Plus, X, Check } from "lucide-react";
+import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe, Tag, Plus, X, Check, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,10 @@ export default function DetalhesProduto() {
   const [showChannelsDialog, setShowChannelsDialog] = useState(false);
   const [tempChannels, setTempChannels] = useState<string[]>([]);
   const [newChannelInput, setNewChannelInput] = useState("");
+  
+  // Dialog de edição de descrição
+  const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
+  const [tempDescription, setTempDescription] = useState("");
   
   // Check URL params to determine where user came from
   const searchParams = new URLSearchParams(window.location.search);
@@ -101,6 +106,18 @@ export default function DetalhesProduto() {
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar canais: " + error.message);
+    },
+  });
+  
+  const updateProductDescription = trpc.products.update.useMutation({
+    onSuccess: () => {
+      toast.success("Descrição atualizada com sucesso!");
+      utils.products.get.invalidate({ id: productId! });
+      utils.products.list.invalidate();
+      setShowDescriptionDialog(false);
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar descrição: " + error.message);
     },
   });
   
@@ -166,6 +183,22 @@ export default function DetalhesProduto() {
     });
   };
 
+  const openDescriptionDialog = () => {
+    if (product) {
+      setTempDescription(product.description || "");
+      setShowDescriptionDialog(true);
+    }
+  };
+
+  const saveDescription = () => {
+    if (!productId) return;
+    
+    updateProductDescription.mutate({
+      id: productId,
+      description: tempDescription.trim() || null,
+    });
+  };
+
   const formatDate = (date: Date | null) => {
     if (!date) return "-";
     return new Date(date).toLocaleString('pt-BR');
@@ -207,7 +240,9 @@ export default function DetalhesProduto() {
     );
   }
 
-  const isLowStock = product.currentStock <= (product.minStock ?? 0);
+  const realStock = product.sku ? getStock(product.sku) : 0;
+  const isLowStock = realStock <= (product.minStock ?? 0) && realStock > 0;
+  const isOutOfStock = realStock === 0;
 
   return (
     <DashboardLayout>
@@ -284,13 +319,13 @@ export default function DetalhesProduto() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-              <CardTitle className="text-xs font-medium">Total Comprado</CardTitle>
+              <CardTitle className="text-xs font-medium">Estoque Real</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="px-3 pb-3">
-              <div className="text-xl font-bold">{product.currentStock}</div>
+              <div className="text-xl font-bold">{realStock}</div>
               <p className="text-xs text-muted-foreground">
-                Importações registradas
+                Disponível agora
               </p>
             </CardContent>
           </Card>
@@ -365,15 +400,11 @@ export default function DetalhesProduto() {
                       {isLoadingStock ? (
                         <Skeleton className="h-4 w-24" />
                       ) : product.sku ? (
-                        `${getStock(product.sku)} unidades`
+                        `${realStock} unidades`
                       ) : (
                         "Não disponível"
                       )}
                     </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Comprado</p>
-                    <p className="font-medium">{product.currentStock} unidades</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Cadastrado em</p>
@@ -415,6 +446,37 @@ export default function DetalhesProduto() {
                   </div>
                 </div>
               </CardContent>
+            </Card>
+
+            {/* Descrição do Produto */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Descrição
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openDescriptionDialog}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    {product.description ? "Editar" : "Adicionar"}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {product.description ? (
+                  <p className="text-sm whitespace-pre-wrap">{product.description}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma descrição adicionada ainda. Clique em "Adicionar" para começar.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             </Card>
           </div>
 
@@ -681,6 +743,44 @@ export default function DetalhesProduto() {
             </Button>
             <Button onClick={saveChannels} disabled={updateProductChannels.isPending}>
               {updateProductChannels.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Edição de Descrição */}
+      <Dialog open={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Editar Descrição</DialogTitle>
+            <DialogDescription>
+              Adicione ou edite a descrição do produto
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                placeholder="Digite a descrição do produto..."
+                value={tempDescription}
+                onChange={(e) => setTempDescription(e.target.value)}
+                rows={6}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                {tempDescription.length} caracteres
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDescriptionDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveDescription} disabled={updateProductDescription.isPending}>
+              {updateProductDescription.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

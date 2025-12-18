@@ -108,8 +108,8 @@ export default function Produtos() {
         return false;
       }
 
-      // Estoque
-      const realStock = product.sku ? getStock(product.sku, product.currentStock) : product.currentStock;
+      // Estoque - usar estoque real da API externa
+      const realStock = product.sku ? getStock(product.sku) : 0;
       if (stockFilter === "low" && realStock > (product.minStock ?? 0)) {
         return false;
       }
@@ -140,10 +140,16 @@ export default function Produtos() {
           return a.salePriceBRL - b.salePriceBRL;
         case "price-desc":
           return b.salePriceBRL - a.salePriceBRL;
-        case "stock-asc":
-          return a.currentStock - b.currentStock;
-        case "stock-desc":
-          return b.currentStock - a.currentStock;
+        case "stock-asc": {
+          const stockA = a.sku ? getStock(a.sku) : 0;
+          const stockB = b.sku ? getStock(b.sku) : 0;
+          return stockA - stockB;
+        }
+        case "stock-desc": {
+          const stockA = a.sku ? getStock(a.sku) : 0;
+          const stockB = b.sku ? getStock(b.sku) : 0;
+          return stockB - stockA;
+        }
         case "name":
         default:
           return a.name.localeCompare(b.name);
@@ -201,11 +207,11 @@ export default function Produtos() {
     let totalUnits = 0;
 
     products.forEach(p => {
-      const realStock = p.sku ? getStock(p.sku, p.currentStock) : p.currentStock;
-      totalUnits += p.currentStock;
+      const realStock = p.sku ? getStock(p.sku) : 0;
+      totalUnits += realStock;
       if (realStock === 0) outOfStock++;
       else if (realStock <= (p.minStock ?? 0)) lowStock++;
-      totalValue += p.salePriceBRL * p.currentStock;
+      totalValue += p.salePriceBRL * realStock;
     });
 
     return {
@@ -461,7 +467,7 @@ export default function Produtos() {
           viewMode === "grid" ? (
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {filteredProducts.map((product) => {
-                const realStock = product.sku ? getStock(product.sku, product.currentStock) : product.currentStock;
+                const realStock = product.sku ? getStock(product.sku) : 0;
                 const isLowStock = realStock <= (product.minStock || 0) && realStock > 0;
                 const isOutOfStock = realStock === 0;
 
@@ -612,7 +618,7 @@ export default function Produtos() {
               <CardContent className="p-0">
                 <div className="divide-y">
                   {filteredProducts.map((product) => {
-                    const realStock = product.sku ? getStock(product.sku, product.currentStock) : product.currentStock;
+                    const realStock = product.sku ? getStock(product.sku) : 0;
                     const isLowStock = realStock <= (product.minStock || 0) && realStock > 0;
                     const isOutOfStock = realStock === 0;
 
