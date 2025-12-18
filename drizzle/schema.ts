@@ -65,6 +65,7 @@ export const products = pgTable("products", {
   averageCostUSD: integer("averageCostUSD").default(0).notNull(),
   salePriceBRL: integer("salePriceBRL").default(0).notNull(),
   lastImportUnitPriceUSD: integer("lastImportUnitPriceUSD").default(0).notNull(),
+  advertisedChannels: text("advertisedChannels").array().default([]).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });

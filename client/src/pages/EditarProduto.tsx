@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Save, Upload, Trash2, Calculator } from "lucide-react";
+import { ArrowLeft, Save, Upload, Trash2, Calculator, Plus, X, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function EditarProduto() {
   const [location, setLocation] = useLocation();
@@ -46,6 +47,8 @@ export default function EditarProduto() {
   const [averageCostUSD, setAverageCostUSD] = useState("");
   const [lastImportUnitPriceUSD, setLastImportUnitPriceUSD] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [advertisedChannels, setAdvertisedChannels] = useState<string[]>([]);
+  const [newChannel, setNewChannel] = useState("");
 
   // Populate form when data loads
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function EditarProduto() {
       setAverageCostUSD(product.averageCostUSD ? (product.averageCostUSD / 100).toFixed(2) : "");
       setLastImportUnitPriceUSD(product.lastImportUnitPriceUSD ? (product.lastImportUnitPriceUSD / 100).toFixed(2) : "");
       setImageUrl(product.imageUrl || "");
+      setAdvertisedChannels(product.advertisedChannels || []);
     }
   }, [product]);
 
@@ -116,7 +120,25 @@ export default function EditarProduto() {
       averageCostUSD: averageCostUSD ? Math.round(parseFloat(averageCostUSD) * 100) : 0,
       lastImportUnitPriceUSD: lastImportUnitPriceUSD ? Math.round(parseFloat(lastImportUnitPriceUSD) * 100) : 0,
       imageUrl: imageUrl.trim() || undefined,
+      advertisedChannels,
     });
+  };
+
+  const addChannel = () => {
+    if (!newChannel.trim()) {
+      toast.error("Digite o nome do canal");
+      return;
+    }
+    if (advertisedChannels.includes(newChannel.trim())) {
+      toast.error("Este canal já foi adicionado");
+      return;
+    }
+    setAdvertisedChannels(prev => [...prev, newChannel.trim()]);
+    setNewChannel("");
+  };
+
+  const removeChannel = (channel: string) => {
+    setAdvertisedChannels(prev => prev.filter(c => c !== channel));
   };
 
   if (isLoading) {
@@ -360,6 +382,65 @@ export default function EditarProduto() {
                   />
                 </div>
               )}
+            </div>
+
+            <div className="pt-4 border-t">
+              <div className="flex items-center gap-2 mb-4">
+                <Tag className="h-5 w-5" />
+                <h3 className="font-semibold text-lg">Locais Anunciados</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ex: ML - Loja A, Shopee, Instagram..."
+                    value={newChannel}
+                    onChange={(e) => setNewChannel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addChannel();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={addChannel}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {advertisedChannels.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {advertisedChannels.map((channel) => (
+                      <Badge
+                        key={channel}
+                        variant="secondary"
+                        className="pl-3 pr-1 py-1 gap-2"
+                      >
+                        {channel}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => removeChannel(channel)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {advertisedChannels.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum canal adicionado ainda
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="pt-4 border-t">

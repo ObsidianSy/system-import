@@ -37,6 +37,7 @@ export const productsRouter = router({
       minStock: z.number().default(0),
       averageCostUSD: z.number().default(0),
       lastImportUnitPriceUSD: z.number().default(0),
+      advertisedChannels: z.array(z.string()).default([]),
     }))
     .mutation(async ({ input }) => {
       return db.createProduct({
@@ -61,6 +62,7 @@ export const productsRouter = router({
       averageCostBRL: z.number().optional(),
       averageCostUSD: z.number().optional(),
       lastImportUnitPriceUSD: z.number().optional(),
+      advertisedChannels: z.array(z.string()).optional(),
     }))
     .mutation(async ({ input }) => {
       const { id, ...data } = input;

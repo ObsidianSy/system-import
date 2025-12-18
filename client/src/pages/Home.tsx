@@ -1,18 +1,21 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Package, TrendingUp, FileText, DollarSign, AlertTriangle, Activity, ShoppingCart, Users, Eye } from "lucide-react";
+import { Package, TrendingUp, FileText, DollarSign, AlertTriangle, Activity, ShoppingCart, Users, Eye, TrendingDown, Megaphone, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useMemo } from "react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const { data: stats, isLoading } = trpc.dashboard.stats.useQuery();
   const { data: recentImportations } = trpc.importations.list.useQuery();
   const { data: products } = trpc.products.list.useQuery();
+  const { canViewCostBRL, canViewCostUSD } = usePermissions();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -22,6 +25,23 @@ export default function Home() {
   };
 
   const recentActivity = recentImportations?.slice(0, 6) || [];
+
+  // Identificar produtos com alto e baixo estoque
+  const highStockProducts = useMemo(() => {
+    if (!products) return [];
+    return products
+      .filter(p => p.currentStock > (p.minStock ?? 0) * 3) // 3x acima do mínimo
+      .sort((a, b) => b.currentStock - a.currentStock)
+      .slice(0, 10);
+  }, [products]);
+
+  const lowStockProducts = useMemo(() => {
+    if (!products) return [];
+    return products
+      .filter(p => p.currentStock <= (p.minStock ?? 0))
+      .sort((a, b) => a.currentStock - b.currentStock)
+      .slice(0, 10);
+  }, [products]);
 
   // Preparar dados para gráfico de estoque por categoria
   const stockByCategory = products?.reduce((acc: any[], product) => {
@@ -77,39 +97,43 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                <CardTitle className="text-xs font-medium">
-                  Total Investido
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-xl font-bold">
-                  {formatCurrency(stats?.totalInvestedBRL || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +20.1% em relação ao mês anterior
-                </p>
-              </CardContent>
-            </Card>
+            {canViewCostBRL && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+                  <CardTitle className="text-xs font-medium">
+                    Total Investido
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  <div className="text-xl font-bold">
+                    {formatCurrency(stats?.totalInvestedBRL || 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    +20.1% em relação ao mês anterior
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                <CardTitle className="text-xs font-medium">
-                  Importações Ativas
-                </CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-xl font-bold">
-                  {(stats?.pendingImportations || 0) + (stats?.inTransitImportations || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.inTransitImportations || 0} em trânsito
-                </p>
-              </CardContent>
-            </Card>
+            {canViewCostBRL && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+                  <CardTitle className="text-xs font-medium">
+                    Importações Ativas
+                  </CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  <div className="text-xl font-bold">
+                    {(stats?.pendingImportations || 0) + (stats?.inTransitImportations || 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats?.inTransitImportations || 0} em trânsito
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
@@ -142,13 +166,223 @@ export default function Home() {
                 </p>
               </CardContent>
             </Card>
+
+            {!canViewCostBRL && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
+                  <CardTitle className="text-xs font-medium">
+                    Alto Estoque
+                  </CardTitle>
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  <div className="text-xl font-bold text-blue-600">
+                    {highStockProducts.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Otimizar anúncios
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Dashboard para Usuários sem Permissão de Custos - Focado em Estoque */}
+        {!canViewCostBRL && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {/* Produtos com Alto Estoque */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                      Produtos com Alto Estoque
+                    </CardTitle>
+                    <CardDescription className="text-xs">Otimize anúncios e promoções</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                    {highStockProducts.length} produtos
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {highStockProducts.length > 0 ? (
+                  highStockProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"
+                      onClick={() => setLocation(`/produtos/${product.id}`)}
+                    >
+                      {/* Imagem do Produto */}
+                      <div className="w-12 h-12 rounded-md bg-white border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="h-8 w-8 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <Megaphone className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {product.sku && (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {product.sku}
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {product.currentStock} un
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Mín: {product.minStock ?? 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
+                          +{Math.round((product.currentStock / (product.minStock || 1) - 1) * 100)}%
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">acima</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-2 opacity-50" />
+                    <p className="text-xs text-muted-foreground">
+                      Nenhum produto com estoque alto
+                    </p>
+                  </div>
+                )}
+                {highStockProducts.length > 0 && (
+                  <div className="pt-2 mt-2 border-t">
+                    <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
+                      <Megaphone className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-blue-900">Sugestão</p>
+                        <p className="text-xs text-blue-700 mt-0.5">
+                          Aumente a visibilidade destes produtos: otimize anúncios, crie promoções e destaque nas redes sociais.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Produtos com Baixo Estoque */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      Produtos com Baixo Estoque
+                    </CardTitle>
+                    <CardDescription className="text-xs">Remova descontos e aumente preços</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-orange-600 border-orange-300">
+                    {lowStockProducts.length} produtos
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {lowStockProducts.length > 0 ? (
+                  lowStockProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"
+                      onClick={() => setLocation(`/produtos/${product.id}`)}
+                    >
+                      {/* Imagem do Produto */}
+                      <div className="w-12 h-12 rounded-md bg-white border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="h-8 w-8 rounded-md bg-orange-100 flex items-center justify-center flex-shrink-0">
+                          <Tag className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {product.sku && (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {product.sku}
+                              </Badge>
+                            )}
+                            <Badge variant="destructive" className="text-xs">
+                              {product.currentStock} un
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Mín: {product.minStock ?? 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        {product.currentStock === 0 ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Zerado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
+                            Crítico
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-2 opacity-50" />
+                    <p className="text-xs text-muted-foreground">
+                      Nenhum produto com estoque baixo
+                    </p>
+                  </div>
+                )}
+                {lowStockProducts.length > 0 && (
+                  <div className="pt-2 mt-2 border-t">
+                    <div className="flex items-start gap-2 p-2 bg-orange-50 rounded-lg">
+                      <Tag className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-orange-900">Sugestão</p>
+                        <p className="text-xs text-orange-700 mt-0.5">
+                          Remova descontos ativos e considere aumentar os preços. Estoque baixo significa alta demanda.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* Gráficos - Layout otimizado */}
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {/* Gráfico de Importações */}
-          <Card className="lg:col-span-2">
+        {canViewCostBRL && (
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {/* Gráfico de Importações */}
+            <Card className="lg:col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Investimento Mensal</CardTitle>
               <CardDescription className="text-xs">Últimos 6 meses</CardDescription>
@@ -238,11 +472,13 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Seção inferior - Atividades e Produtos em Destaque */}
-        <div className="grid gap-3 md:grid-cols-2">
-          {/* Atividade Recente - Compacta */}
-          <Card>
+        {canViewCostBRL && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {/* Atividade Recente - Compacta */}
+            <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm">Atividade Recente</CardTitle>
@@ -333,6 +569,7 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
     </DashboardLayout>
   );
