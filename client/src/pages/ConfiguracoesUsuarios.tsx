@@ -442,7 +442,16 @@ export default function ConfiguracoesUsuarios() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => handleEditUser(user)}
+                              title="Editar usuário"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => handleDeleteUser(user.id, user.name || "")}
+                              title="Excluir usuário"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
