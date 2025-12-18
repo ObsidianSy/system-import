@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
-import { Search, Package, Filter, X, Grid3x3, LayoutGrid, ArrowUpDown, Edit, Trash2, ShoppingCart, MoreVertical, Printer, Check } from "lucide-react";
+import { Search, Package, Filter, X, Grid3x3, LayoutGrid, ArrowUpDown, Edit, Trash2, ShoppingCart, MoreVertical, Printer, Check, Plus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExternalStock } from "@/_core/hooks/useExternalStock";
@@ -55,10 +55,18 @@ export default function Galeria() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const [channelFilter, setChannelFilter] = useState("all"); // all, announced, not-announced, specific-channel
+  const [specificChannel, setSpecificChannel] = useState("");
   
   // Seleção múltipla
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  
+  // Dialog de edição rápida de canais
+  const [showChannelsDialog, setShowChannelsDialog] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [tempChannels, setTempChannels] = useState<string[]>([]);
+  const [newChannelInput, setNewChannelInput] = useState("");
   
   // Opções de impressão
   const [printOptions, setPrintOptions] = useState({
@@ -67,6 +75,7 @@ export default function Galeria() {
     showPrice: true,
     showCategory: true,
     showStock: false,
+    showChannels: true,
     imageSize: "medium" as "small" | "medium" | "large",
     columns: 3,
   });
@@ -95,6 +104,19 @@ export default function Galeria() {
     },
   });
 
+  const updateProductChannels = trpc.products.update.useMutation({
+    onSuccess: () => {
+      toast.success("Canais atualizados com sucesso!");
+      utils.products.list.invalidate();
+      setShowChannelsDialog(false);
+      setEditingProductId(null);
+      setTempChannels([]);
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar canais: " + error.message);
+    },
+  });
+
   // Fetch external stock
   const allSkus = useMemo(() => 
     products?.filter(p => p.sku).map(p => p.sku!) || [],
@@ -108,6 +130,17 @@ export default function Galeria() {
     if (!products) return [];
     const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
     return uniqueCategories.sort();
+  }, [products]);
+
+  const allChannels = useMemo(() => {
+    if (!products) return [];
+    const channelsSet = new Set<string>();
+    products.forEach(p => {
+      if (p.advertisedChannels) {
+        p.advertisedChannels.forEach(ch => channelsSet.add(ch));
+      }
+    });
+    return Array.from(channelsSet).sort();
   }, [products]);
 
   // Aplicar filtros e ordenação
@@ -155,6 +188,20 @@ export default function Galeria() {
         if (product.salePriceBRL > maxPrice) return false;
       }
 
+      // Filtro de canais anunciados
+      const hasChannels = product.advertisedChannels && product.advertisedChannels.length > 0;
+      if (channelFilter === "announced" && !hasChannels) {
+        return false;
+      }
+      if (channelFilter === "not-announced" && hasChannels) {
+        return false;
+      }
+      if (specificChannel && (!hasChannels || !product.advertisedChannels.some(ch => 
+        ch.toLowerCase().includes(specificChannel.toLowerCase())
+      ))) {
+        return false;
+      }
+
       return true;
     });
 
@@ -177,7 +224,7 @@ export default function Galeria() {
     });
 
     return filtered;
-  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, sortBy, getStock]);
+  }, [products, searchTerm, categoryFilter, stockFilter, priceMin, priceMax, sortBy, channelFilter, specificChannel, getStock]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -186,9 +233,11 @@ export default function Galeria() {
     setPriceMin("");
     setPriceMax("");
     setSortBy("name");
+    setChannelFilter("all");
+    setSpecificChannel("");
   };
 
-  const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || priceMin || priceMax;
+  const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || priceMin || priceMax || channelFilter !== "all" || specificChannel;
   
   const getGridClass = () => {
     switch(gridSize) {
@@ -256,6 +305,51 @@ export default function Galeria() {
 
   const clearSelection = () => {
     setSelectedProducts(new Set());
+  };
+
+  const openChannelsDialog = (productId: string) => {
+    const product = products?.find(p => p.id === productId);
+    if (product) {
+      setEditingProductId(productId);
+      setTempChannels(product.advertisedChannels || []);
+      setNewChannelInput("");
+      setShowChannelsDialog(true);
+    }
+  };
+
+  const addChannelToTemp = (channel: string) => {
+    const trimmed = channel.trim();
+    if (!trimmed) {
+      toast.error("Digite o nome do canal");
+      return;
+    }
+    if (tempChannels.includes(trimmed)) {
+      toast.error("Este canal já foi adicionado");
+      return;
+    }
+    setTempChannels(prev => [...prev, trimmed]);
+    setNewChannelInput("");
+  };
+
+  const removeChannelFromTemp = (channel: string) => {
+    setTempChannels(prev => prev.filter(c => c !== channel));
+  };
+
+  const toggleChannelInTemp = (channel: string) => {
+    if (tempChannels.includes(channel)) {
+      removeChannelFromTemp(channel);
+    } else {
+      setTempChannels(prev => [...prev, channel]);
+    }
+  };
+
+  const saveChannels = () => {
+    if (!editingProductId) return;
+    
+    updateProductChannels.mutate({
+      id: editingProductId,
+      advertisedChannels: tempChannels,
+    });
   };
 
   const addSelectedToOrder = async () => {
@@ -332,6 +426,8 @@ export default function Galeria() {
     .product-price { font-size: 13px; color: #2563eb; font-weight: bold; margin: 5px 0; }
     .product-category { font-size: 10px; color: #888; margin: 3px 0; }
     .product-stock { font-size: 11px; color: #16a34a; margin: 3px 0; }
+    .product-channels { font-size: 10px; color: #1e40af; margin: 5px 0; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+    .channel-badge { background: #dbeafe; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
     h1 { margin: 0; font-size: 24px; }
     .date { font-size: 12px; color: #666; }
@@ -357,6 +453,10 @@ export default function Galeria() {
 `;
 
     selectedItems.forEach(product => {
+      const channelsHTML = printOptions.showChannels && product.advertisedChannels && product.advertisedChannels.length > 0
+        ? `<div class="product-channels">${product.advertisedChannels.map(ch => `<span class="channel-badge">${ch}</span>`).join('')}</div>`
+        : '';
+      
       html += `
     <div class="product-card">
       ${product.imageUrl ? `<img src="${product.imageUrl}" class="product-image" alt="${product.name}">` : 
@@ -364,6 +464,7 @@ export default function Galeria() {
       ${printOptions.showName ? `<div class="product-name">${product.name}</div>` : ''}
       ${printOptions.showSku && product.sku ? `<div class="product-sku">SKU: ${product.sku}</div>` : ''}
       ${printOptions.showCategory && product.category ? `<div class="product-category">${product.category}</div>` : ''}
+      ${channelsHTML}
       ${printOptions.showPrice && product.salePriceBRL > 0 ? `<div class="product-price">${formatCurrency(product.salePriceBRL)}</div>` : ''}
       ${printOptions.showStock ? `<div class="product-stock">Estoque: ${product.currentStock} un</div>` : ''}
     </div>
@@ -442,6 +543,15 @@ export default function Galeria() {
                 </span>
               </Button>
             )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={printCatalog}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir catálogo
+            </Button>
+            <div className="w-px h-6 bg-border mx-1" />
             <Button
               variant={gridSize === "4" ? "default" : "outline"}
               size="icon"
@@ -558,6 +668,17 @@ export default function Galeria() {
                   </SelectContent>
                 </Select>
 
+                <Select value={channelFilter} onValueChange={setChannelFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Canais" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="announced">Anunciados</SelectItem>
+                    <SelectItem value="not-announced">Não anunciados</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-[140px]">
                     <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -587,7 +708,7 @@ export default function Galeria() {
                     <SheetHeader>
                       <SheetTitle>Filtros Avançados</SheetTitle>
                       <SheetDescription>
-                        Refine sua busca com filtros de preço
+                        Refine sua busca com filtros de preço e canais
                       </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-6">
@@ -609,6 +730,19 @@ export default function Galeria() {
                             onChange={(e) => setPriceMax(e.target.value)}
                           />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="specificChannel">Buscar por Canal Específico</Label>
+                        <Input
+                          id="specificChannel"
+                          placeholder="Ex: Mercado Livre, Shopee..."
+                          value={specificChannel}
+                          onChange={(e) => setSpecificChannel(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Busca parcial - encontra canais que contenham o texto digitado
+                        </p>
                       </div>
 
                       {hasActiveFilters && (
@@ -770,6 +904,45 @@ export default function Galeria() {
                         )}
                       </div>
 
+                      {/* Badges de Canais Anunciados */}
+                      <div className="flex items-center gap-1.5">
+                        {product.advertisedChannels && product.advertisedChannels.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 flex-1">
+                            {product.advertisedChannels.slice(0, 3).map((channel) => (
+                              <Badge
+                                key={channel}
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                {channel}
+                              </Badge>
+                            ))}
+                            {product.advertisedChannels.length > 3 && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                +{product.advertisedChannels.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground flex-1">Sem canais</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 p-0 hover:bg-primary hover:text-primary-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openChannelsDialog(product.id);
+                          }}
+                          title="Editar canais anunciados"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+
                       {product.salePriceBRL > 0 && (
                         <div className="flex items-center justify-between pt-2 border-t">
                           <span className="text-xs text-muted-foreground">Preço</span>
@@ -881,6 +1054,18 @@ export default function Galeria() {
                     Estoque
                   </label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showChannels"
+                    checked={printOptions.showChannels}
+                    onCheckedChange={(checked) =>
+                      setPrintOptions({ ...printOptions, showChannels: !!checked })
+                    }
+                  />
+                  <label htmlFor="showChannels" className="text-sm cursor-pointer">
+                    Locais anunciados
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -931,6 +1116,108 @@ export default function Galeria() {
             <Button onClick={executePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Edição Rápida de Canais */}
+      <Dialog open={showChannelsDialog} onOpenChange={setShowChannelsDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Locais Anunciados</DialogTitle>
+            <DialogDescription>
+              Adicione ou remova os canais onde este produto está anunciado
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Input para novo canal */}
+            <div className="space-y-2">
+              <Label htmlFor="newChannel">Adicionar Canal</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="newChannel"
+                  placeholder="Digite o nome do canal..."
+                  value={newChannelInput}
+                  onChange={(e) => setNewChannelInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addChannelToTemp(newChannelInput);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={() => addChannelToTemp(newChannelInput)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Canais sugeridos (já usados em outros produtos) */}
+            {allChannels.length > 0 && (
+              <div className="space-y-2">
+                <Label>Canais Disponíveis (clique para adicionar/remover)</Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30 max-h-32 overflow-y-auto">
+                  {allChannels.map((channel) => (
+                    <Badge
+                      key={channel}
+                      variant={tempChannels.includes(channel) ? "default" : "outline"}
+                      className="cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => toggleChannelInTemp(channel)}
+                    >
+                      {tempChannels.includes(channel) && (
+                        <Check className="h-3 w-3 mr-1" />
+                      )}
+                      {channel}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Canais selecionados */}
+            <div className="space-y-2">
+              <Label>Canais Selecionados ({tempChannels.length})</Label>
+              {tempChannels.length > 0 ? (
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg">
+                  {tempChannels.map((channel) => (
+                    <Badge
+                      key={channel}
+                      variant="secondary"
+                      className="pl-3 pr-1 py-1 gap-2"
+                    >
+                      {channel}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => removeChannelFromTemp(channel)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                  Nenhum canal selecionado
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChannelsDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveChannels} disabled={updateProductChannels.isPending}>
+              {updateProductChannels.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

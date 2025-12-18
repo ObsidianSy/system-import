@@ -14,8 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DollarSign, TrendingUp, Package, Calendar, Filter, X, Percent, Truck, Scale, PieChart as PieChartIcon, BarChart as BarChartIcon } from "lucide-react";
+import { DollarSign, TrendingUp, Package, Calendar, Filter, X, Percent, Truck, Scale, PieChart as PieChartIcon, BarChart as BarChartIcon, TrendingDown, AlertCircle } from "lucide-react";
 import { useState, useMemo } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useLocation } from "wouter";
 import {
   BarChart,
   Bar,
@@ -35,9 +37,11 @@ import {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export default function Relatorios() {
+  const [, setLocation] = useLocation();
   const { data: importations, isLoading: loadingImportations } = trpc.importations.list.useQuery();
   const { data: products, isLoading: loadingProducts } = trpc.products.list.useQuery();
   const { data: suppliers, isLoading: loadingSuppliers } = trpc.suppliers.list.useQuery();
+  const { canViewCostBRL, canViewCostUSD } = usePermissions();
   
   // Filtros de data
   const [startDate, setStartDate] = useState("");
@@ -165,6 +169,47 @@ export default function Relatorios() {
       .slice(0, 10);
   }, [filteredImportations]);
 
+  // Métricas de vendas para usuários (baseado em quantidade comprada vs estoque atual)
+  const salesMetrics = useMemo(() => {
+    if (!products) return { mostSold: [], leastSold: [] };
+    
+    const productsWithSales = products
+      .map(product => {
+        const totalPurchased = product.currentStock; // Isso é o total comprado registrado
+        // Assumindo que vendas = total comprado - estoque atual no sistema externo
+        // Mas como não temos essa info, vamos usar a lógica de que quanto menor o estoque atual
+        // em relação ao mínimo, mais está vendendo
+        const salesRate = product.minStock && product.minStock > 0
+          ? (product.currentStock / product.minStock)
+          : product.currentStock;
+        
+        return {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          imageUrl: product.imageUrl,
+          totalPurchased: product.currentStock,
+          currentStock: product.currentStock,
+          minStock: product.minStock ?? 0,
+          salesRate,
+          category: product.category,
+        };
+      })
+      .filter(p => p.totalPurchased > 0);
+
+    // Produtos mais vendidos: baixo estoque em relação ao total comprado
+    const mostSold = productsWithSales
+      .sort((a, b) => a.salesRate - b.salesRate)
+      .slice(0, 10);
+
+    // Produtos menos vendidos: alto estoque, pouco movimento
+    const leastSold = productsWithSales
+      .sort((a, b) => b.currentStock - a.currentStock)
+      .slice(0, 10);
+
+    return { mostSold, leastSold };
+  }, [products]);
+
   // Dados para o gráfico de linha (Custos ao longo do tempo)
   const monthlyData = useMemo(() => {
     if (!filteredImportations) return [];
@@ -199,11 +244,12 @@ export default function Relatorios() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Relatórios</h1>
             <p className="text-muted-foreground">
-              Análises detalhadas de estoque e importações
+              {canViewCostBRL ? "Análises detalhadas de estoque e importações" : "Métricas de produtos e desempenho de vendas"}
             </p>
           </div>
           
-          <div className="flex items-end gap-2 bg-card p-2 rounded-lg border shadow-sm">
+          {canViewCostBRL && (
+            <div className="flex items-end gap-2 bg-card p-2 rounded-lg border shadow-sm">
             <div className="grid gap-1.5">
               <Label htmlFor="start-date" className="text-xs">Data Inicial</Label>
               <Input 
@@ -230,10 +276,263 @@ export default function Relatorios() {
               </Button>
             )}
           </div>
+          )}
         </div>
 
-        {/* Cards de Estoque Atual */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Dashboard para Usuários sem Permissão de Custos */}
+        {!canViewCostBRL && (
+          <div className="space-y-6">
+            {/* Cards de Métricas de Estoque */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{products?.length || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Produtos cadastrados
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Estoque Total</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stockStats.totalQuantity.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Unidades em estoque
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Estoque Crítico</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">
+                    {products?.filter(p => p.currentStock <= (p.minStock ?? 0)).length || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Produtos com baixo estoque
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Produtos Mais Vendidos */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    Produtos Mais Vendidos
+                  </CardTitle>
+                  <CardDescription>
+                    Top 10 produtos com maior saída (menor estoque atual)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {salesMetrics.mostSold.map((product, index) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"
+                        onClick={() => setLocation(`/produtos/${product.id}`)}
+                      >
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-green-100 text-xs font-bold text-green-700 flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        
+                        {/* Imagem do Produto */}
+                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {product.sku && (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {product.sku}
+                              </Badge>
+                            )}
+                            {product.category && (
+                              <Badge variant="secondary" className="text-xs">
+                                {product.category}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <Badge 
+                            variant={product.currentStock === 0 ? "destructive" : "default"}
+                            className="text-xs"
+                          >
+                            {product.currentStock} un
+                          </Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Mín: {product.minStock}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {salesMetrics.mostSold.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Nenhum dado disponível</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Produtos Menos Vendidos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5 text-orange-600" />
+                    Produtos com Menor Saída
+                  </CardTitle>
+                  <CardDescription>
+                    Top 10 produtos com estoque acumulado (maior estoque)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {salesMetrics.leastSold.map((product, index) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"
+                        onClick={() => setLocation(`/produtos/${product.id}`)}
+                      >
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-orange-100 text-xs font-bold text-orange-700 flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        
+                        {/* Imagem do Produto */}
+                        <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {product.sku && (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {product.sku}
+                              </Badge>
+                            )}
+                            {product.category && (
+                              <Badge variant="secondary" className="text-xs">
+                                {product.category}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
+                            {product.currentStock} un
+                          </Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Mín: {product.minStock}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {salesMetrics.leastSold.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Nenhum dado disponível</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Dicas e Sugestões */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-green-200 bg-green-50">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    Estratégia para Produtos Mais Vendidos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-sm text-green-900 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span>Priorize a reposição destes produtos</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span>Considere aumentar preços se o estoque estiver muito baixo</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold">✓</span>
+                      <span>Remova descontos e promoções para maximizar margem</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-orange-600" />
+                    Estratégia para Produtos com Menor Saída
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-sm text-orange-900 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-600 font-bold">!</span>
+                      <span>Crie promoções e descontos agressivos</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-600 font-bold">!</span>
+                      <span>Otimize fotos, títulos e descrições dos anúncios</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-orange-600 font-bold">!</span>
+                      <span>Invista em anúncios patrocinados para aumentar visibilidade</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Cards de Estoque Atual - Apenas para Admins */}
+        {canViewCostBRL && (
+          <div className="grid gap-4 md:grid-cols-3">
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Valor Total em Estoque (Atual)</CardTitle>
@@ -273,8 +572,10 @@ export default function Relatorios() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Cards de Resumo de Importações (Filtrados) */}
+        {canViewCostBRL && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -367,8 +668,10 @@ export default function Relatorios() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Gráficos */}
+        {canViewCostBRL && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -433,8 +736,10 @@ export default function Relatorios() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Importações por Fornecedor */}
+        {canViewCostBRL && (
         <Card>
           <CardHeader>
             <CardTitle>Detalhamento por Fornecedor</CardTitle>
@@ -483,8 +788,10 @@ export default function Relatorios() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Top 10 Produtos Mais Importados */}
+        {canViewCostBRL && (
         <Card>
           <CardHeader>
             <CardTitle>Top 10 Produtos Mais Importados</CardTitle>
@@ -542,8 +849,10 @@ export default function Relatorios() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Histórico de Importações */}
+        {canViewCostBRL && (
         <Card>
           <CardHeader>
             <CardTitle>Histórico Recente de Importações</CardTitle>
@@ -611,6 +920,7 @@ export default function Relatorios() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     </DashboardLayout>
   );

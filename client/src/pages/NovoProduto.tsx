@@ -8,7 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, X } from "lucide-react";
+import { ArrowLeft, Upload, X, Plus, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function NovoProduto() {
   const [, setLocation] = useLocation();
@@ -21,9 +22,11 @@ export default function NovoProduto() {
     currentStock: 0,
     minStock: 0,
     lastImportUnitPriceUSD: 0,
+    advertisedChannels: [] as string[],
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [newChannel, setNewChannel] = useState("");
 
   const createProduct = trpc.products.create.useMutation({
     onSuccess: async (product) => {
@@ -99,6 +102,29 @@ export default function NovoProduto() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
+  };
+
+  const addChannel = () => {
+    if (!newChannel.trim()) {
+      toast.error("Digite o nome do canal");
+      return;
+    }
+    if (formData.advertisedChannels.includes(newChannel.trim())) {
+      toast.error("Este canal já foi adicionado");
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      advertisedChannels: [...prev.advertisedChannels, newChannel.trim()]
+    }));
+    setNewChannel("");
+  };
+
+  const removeChannel = (channel: string) => {
+    setFormData(prev => ({
+      ...prev,
+      advertisedChannels: prev.advertisedChannels.filter(c => c !== channel)
+    }));
   };
 
   return (
@@ -237,7 +263,70 @@ export default function NovoProduto() {
               </Card>
             </div>
 
-            <div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Locais Anunciados
+                  </CardTitle>
+                  <CardDescription>
+                    Adicione os canais onde este produto está sendo anunciado
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ex: ML - Loja A, Shopee, Instagram..."
+                      value={newChannel}
+                      onChange={(e) => setNewChannel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addChannel();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={addChannel}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {formData.advertisedChannels.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.advertisedChannels.map((channel) => (
+                        <Badge
+                          key={channel}
+                          variant="secondary"
+                          className="pl-3 pr-1 py-1 gap-2"
+                        >
+                          {channel}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => removeChannel(channel)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {formData.advertisedChannels.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum canal adicionado ainda
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Imagem do Produto</CardTitle>

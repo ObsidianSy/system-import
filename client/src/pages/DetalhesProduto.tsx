@@ -6,11 +6,22 @@ import { StockBadge, StockDisplay } from "@/components/ui/stock-badge";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe } from "lucide-react";
+import { ArrowLeft, Package, AlertTriangle, TrendingUp, TrendingDown, Edit, Trash2, Calculator, Globe, Tag, Plus, X, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useExternalStock, useExternalProductData } from "@/_core/hooks/useExternalStock";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { ExternalProductData } from "../../../shared/externalTypes";
 import {
   Table,
@@ -25,6 +36,12 @@ export default function DetalhesProduto() {
   const [location, setLocation] = useLocation();
   const [, params] = useRoute("/produtos/:id");
   const productId = params?.id;
+  const { canViewCostUSD, canViewCostBRL } = usePermissions();
+  
+  // Dialog de edição de canais
+  const [showChannelsDialog, setShowChannelsDialog] = useState(false);
+  const [tempChannels, setTempChannels] = useState<string[]>([]);
+  const [newChannelInput, setNewChannelInput] = useState("");
   
   // Check URL params to determine where user came from
   const searchParams = new URLSearchParams(window.location.search);
@@ -39,6 +56,8 @@ export default function DetalhesProduto() {
     { id: productId! },
     { enabled: !!productId }
   );
+
+  const { data: allProducts } = trpc.products.list.useQuery();
 
   const { data: movements } = trpc.stock.movements.useQuery(
     { productId: productId! },
@@ -58,7 +77,33 @@ export default function DetalhesProduto() {
 
   const externalData: ExternalProductData | undefined = product?.sku ? getProductData(product.sku) : undefined;
 
+  // Extrair todos os canais únicos de todos os produtos
+  const allChannels = useMemo(() => {
+    if (!allProducts) return [];
+    const channelsSet = new Set<string>();
+    allProducts.forEach(p => {
+      if (p.advertisedChannels) {
+        p.advertisedChannels.forEach(ch => channelsSet.add(ch));
+      }
+    });
+    return Array.from(channelsSet).sort();
+  }, [allProducts]);
+
   const utils = trpc.useUtils();
+  
+  const updateProductChannels = trpc.products.update.useMutation({
+    onSuccess: () => {
+      toast.success("Canais atualizados com sucesso!");
+      utils.products.get.invalidate({ id: productId! });
+      utils.products.list.invalidate();
+      setShowChannelsDialog(false);
+      setTempChannels([]);
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar canais: " + error.message);
+    },
+  });
+  
   const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => {
       toast.success("Produto deletado com sucesso!");
@@ -76,6 +121,49 @@ export default function DetalhesProduto() {
     if (window.confirm(`Tem certeza que deseja deletar o produto "${product?.name}"? Esta ação não pode ser desfeita.`)) {
       deleteProduct.mutate({ id: productId! });
     }
+  };
+
+  const openChannelsDialog = () => {
+    if (product) {
+      setTempChannels(product.advertisedChannels || []);
+      setNewChannelInput("");
+      setShowChannelsDialog(true);
+    }
+  };
+
+  const addChannelToTemp = (channel: string) => {
+    const trimmed = channel.trim();
+    if (!trimmed) {
+      toast.error("Digite o nome do canal");
+      return;
+    }
+    if (tempChannels.includes(trimmed)) {
+      toast.error("Este canal já foi adicionado");
+      return;
+    }
+    setTempChannels(prev => [...prev, trimmed]);
+    setNewChannelInput("");
+  };
+
+  const removeChannelFromTemp = (channel: string) => {
+    setTempChannels(prev => prev.filter(c => c !== channel));
+  };
+
+  const toggleChannelInTemp = (channel: string) => {
+    if (tempChannels.includes(channel)) {
+      removeChannelFromTemp(channel);
+    } else {
+      setTempChannels(prev => [...prev, channel]);
+    }
+  };
+
+  const saveChannels = () => {
+    if (!productId) return;
+    
+    updateProductChannels.mutate({
+      id: productId,
+      advertisedChannels: tempChannels,
+    });
   };
 
   const formatDate = (date: Date | null) => {
@@ -295,18 +383,22 @@ export default function DetalhesProduto() {
                     <p className="text-sm text-muted-foreground">Código do Fornecedor</p>
                     <p className="font-medium">{product.supplierProductCode || "-"}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Custo Médio (BRL)</p>
-                    <p className="font-medium">{formatCurrency(product.averageCostBRL)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Custo Última Importação (USD)</p>
-                    <p className="font-medium">
-                      {product.lastImportUnitPriceUSD 
-                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(product.lastImportUnitPriceUSD / 100)
-                        : "-"}
-                    </p>
-                  </div>
+                  {canViewCostBRL && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Custo Médio (BRL)</p>
+                      <p className="font-medium">{formatCurrency(product.averageCostBRL)}</p>
+                    </div>
+                  )}
+                  {canViewCostUSD && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Custo Última Importação (USD)</p>
+                      <p className="font-medium">
+                        {product.lastImportUnitPriceUSD 
+                          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(product.lastImportUnitPriceUSD / 100)
+                          : "-"}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground">Preço de Venda</p>
                     <div className="flex items-center gap-2">
@@ -347,6 +439,45 @@ export default function DetalhesProduto() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Canais Anunciados */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Locais Anunciados
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openChannelsDialog}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {product.advertisedChannels && product.advertisedChannels.length > 0 ? "Editar" : "Adicionar"}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {product.advertisedChannels && product.advertisedChannels.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {product.advertisedChannels.map((channel) => (
+                      <Badge
+                        key={channel}
+                        variant="secondary"
+                        className="px-3 py-1"
+                      >
+                        {channel}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum canal adicionado ainda. Clique em "Adicionar" para começar.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -365,11 +496,11 @@ export default function DetalhesProduto() {
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead className="text-right">Estoque Anterior</TableHead>
                     <TableHead className="text-right">Estoque Novo</TableHead>
-                    <TableHead className="text-right">Custo Unit. (BRL)</TableHead>
-                    <TableHead className="text-right">Custo Unit. (USD)</TableHead>
-                    <TableHead className="text-right">Custo Médio Ant.</TableHead>
-                    <TableHead className="text-right">Custo Médio Novo (BRL)</TableHead>
-                    <TableHead className="text-right">Custo Médio Novo (USD)</TableHead>
+                    {canViewCostBRL && <TableHead className="text-right">Custo Unit. (BRL)</TableHead>}
+                    {canViewCostUSD && <TableHead className="text-right">Custo Unit. (USD)</TableHead>}
+                    {canViewCostBRL && <TableHead className="text-right">Custo Médio Ant.</TableHead>}
+                    {canViewCostBRL && <TableHead className="text-right">Custo Médio Novo (BRL)</TableHead>}
+                    {canViewCostUSD && <TableHead className="text-right">Custo Médio Novo (USD)</TableHead>}
                     <TableHead>Referência</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -395,38 +526,48 @@ export default function DetalhesProduto() {
                       <TableCell className="text-right font-medium">
                         {movement.newStock}
                       </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {movement.unitCostBRL ? formatCurrency(movement.unitCostBRL) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {movement.unitCostUSD 
-                          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.unitCostUSD / 100)
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">
-                        {movement.previousAverageCostBRL ? formatCurrency(movement.previousAverageCostBRL) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {movement.newAverageCostBRL ? (
-                          <div className="flex items-center justify-end gap-1">
-                            {formatCurrency(movement.newAverageCostBRL)}
-                            {movement.newAverageCostBRL !== movement.previousAverageCostBRL && (
-                              movement.newAverageCostBRL > movement.previousAverageCostBRL ? (
-                                <TrendingUp className="h-3 w-3 text-red-500" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3 text-green-500" />
-                              )
-                            )}
-                          </div>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {movement.newAverageCostUSD ? (
-                          <div className="flex items-center justify-end gap-1">
-                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.newAverageCostUSD / 100)}
-                          </div>
-                        ) : "-"}
-                      </TableCell>
+                      {canViewCostBRL && (
+                        <TableCell className="text-right text-sm">
+                          {movement.unitCostBRL ? formatCurrency(movement.unitCostBRL) : "-"}
+                        </TableCell>
+                      )}
+                      {canViewCostUSD && (
+                        <TableCell className="text-right text-sm">
+                          {movement.unitCostUSD 
+                            ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.unitCostUSD / 100)
+                            : "-"}
+                        </TableCell>
+                      )}
+                      {canViewCostBRL && (
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {movement.previousAverageCostBRL ? formatCurrency(movement.previousAverageCostBRL) : "-"}
+                        </TableCell>
+                      )}
+                      {canViewCostBRL && (
+                        <TableCell className="text-right text-sm font-medium">
+                          {movement.newAverageCostBRL ? (
+                            <div className="flex items-center justify-end gap-1">
+                              {formatCurrency(movement.newAverageCostBRL)}
+                              {movement.newAverageCostBRL !== movement.previousAverageCostBRL && (
+                                movement.newAverageCostBRL > movement.previousAverageCostBRL ? (
+                                  <TrendingUp className="h-3 w-3 text-red-500" />
+                                ) : (
+                                  <TrendingDown className="h-3 w-3 text-green-500" />
+                                )
+                              )}
+                            </div>
+                          ) : "-"}
+                        </TableCell>
+                      )}
+                      {canViewCostUSD && (
+                        <TableCell className="text-right text-sm font-medium">
+                          {movement.newAverageCostUSD ? (
+                            <div className="flex items-center justify-end gap-1">
+                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(movement.newAverageCostUSD / 100)}
+                            </div>
+                          ) : "-"}
+                        </TableCell>
+                      )}
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {movement.reference || "-"}
                       </TableCell>
@@ -442,6 +583,108 @@ export default function DetalhesProduto() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de Edição Rápida de Canais */}
+      <Dialog open={showChannelsDialog} onOpenChange={setShowChannelsDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Locais Anunciados</DialogTitle>
+            <DialogDescription>
+              Adicione ou remova os canais onde este produto está anunciado
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Input para novo canal */}
+            <div className="space-y-2">
+              <Label htmlFor="newChannel">Adicionar Canal</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="newChannel"
+                  placeholder="Digite o nome do canal..."
+                  value={newChannelInput}
+                  onChange={(e) => setNewChannelInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addChannelToTemp(newChannelInput);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={() => addChannelToTemp(newChannelInput)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Canais sugeridos (já usados em outros produtos) */}
+            {allChannels.length > 0 && (
+              <div className="space-y-2">
+                <Label>Canais Disponíveis (clique para adicionar/remover)</Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30 max-h-32 overflow-y-auto">
+                  {allChannels.map((channel) => (
+                    <Badge
+                      key={channel}
+                      variant={tempChannels.includes(channel) ? "default" : "outline"}
+                      className="cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => toggleChannelInTemp(channel)}
+                    >
+                      {tempChannels.includes(channel) && (
+                        <Check className="h-3 w-3 mr-1" />
+                      )}
+                      {channel}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Canais selecionados */}
+            <div className="space-y-2">
+              <Label>Canais Selecionados ({tempChannels.length})</Label>
+              {tempChannels.length > 0 ? (
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg">
+                  {tempChannels.map((channel) => (
+                    <Badge
+                      key={channel}
+                      variant="secondary"
+                      className="pl-3 pr-1 py-1 gap-2"
+                    >
+                      {channel}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => removeChannelFromTemp(channel)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                  Nenhum canal selecionado
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChannelsDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveChannels} disabled={updateProductChannels.isPending}>
+              {updateProductChannels.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
