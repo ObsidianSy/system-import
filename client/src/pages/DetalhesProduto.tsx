@@ -195,7 +195,7 @@ export default function DetalhesProduto() {
     
     updateProductDescription.mutate({
       id: productId,
-      description: tempDescription.trim() || null,
+      description: tempDescription.trim() || undefined,
     });
   };
 
@@ -475,8 +475,6 @@ export default function DetalhesProduto() {
                   </p>
                 )}
               </CardContent>
-            </Card>
-
             </Card>
           </div>
 
