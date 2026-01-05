@@ -268,6 +268,60 @@ export async function listProducts(): Promise<Product[]> {
   return db.select().from(products).orderBy(products.sku);
 }
 
+export async function getProductsWithAggregates(): Promise<Array<Product & { 
+  totalInTransit: number; 
+  totalInOrders: number; 
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all products
+  const allProducts = await db.select().from(products).orderBy(products.sku);
+  
+  // Calculate quantities in transit (from importations that are pending, in_transit, or customs)
+  const inTransitQuery = await db
+    .select({
+      productId: importationItems.productId,
+      totalInTransit: sql<number>`COALESCE(SUM(${importationItems.quantity}), 0)`.as('totalInTransit'),
+    })
+    .from(importationItems)
+    .innerJoin(importations, eq(importationItems.importationId, importations.id))
+    .where(
+      and(
+        sql`${importationItems.productId} IS NOT NULL`,
+        sql`${importations.status} IN ('pending', 'in_transit', 'customs')`
+      )
+    )
+    .groupBy(importationItems.productId);
+
+  // Calculate quantities in pending orders
+  const inOrdersQuery = await db
+    .select({
+      productId: orderItems.productId,
+      totalInOrders: sql<number>`COALESCE(SUM(${orderItems.quantity}), 0)`.as('totalInOrders'),
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(
+      and(
+        sql`${orderItems.productId} IS NOT NULL`,
+        eq(orders.status, 'pending')
+      )
+    )
+    .groupBy(orderItems.productId);
+
+  // Create maps for quick lookup
+  const inTransitMap = new Map(inTransitQuery.map(item => [item.productId!, Number(item.totalInTransit)]));
+  const inOrdersMap = new Map(inOrdersQuery.map(item => [item.productId!, Number(item.totalInOrders)]));
+
+  // Combine the data
+  return allProducts.map(product => ({
+    ...product,
+    totalInTransit: inTransitMap.get(product.id) || 0,
+    totalInOrders: inOrdersMap.get(product.id) || 0,
+  }));
+}
+
 export async function getProductBySku(sku: string): Promise<Product | undefined> {
   const db = await getDb();
   if (!db) return undefined;
@@ -352,7 +406,29 @@ export async function getImportationItems(importationId: string): Promise<Import
   const db = await getDb();
   if (!db) return [];
 
-  return db.select().from(importationItems).where(eq(importationItems.importationId, importationId));
+  return db
+    .select({
+      id: importationItems.id,
+      importationId: importationItems.importationId,
+      productId: importationItems.productId,
+      productName: importationItems.productName,
+      productDescription: importationItems.productDescription,
+      supplierProductCode: importationItems.supplierProductCode,
+      color: importationItems.color,
+      size: importationItems.size,
+      quantity: importationItems.quantity,
+      unitPriceUSD: importationItems.unitPriceUSD,
+      totalUSD: importationItems.totalUSD,
+      unitCostBRL: importationItems.unitCostBRL,
+      totalCostBRL: importationItems.totalCostBRL,
+      createdAt: importationItems.createdAt,
+      updatedAt: importationItems.updatedAt,
+      sku: products.sku,
+      imageUrl: products.imageUrl,
+    })
+    .from(importationItems)
+    .leftJoin(products, eq(importationItems.productId, products.id))
+    .where(eq(importationItems.importationId, importationId));
 }
 
 export async function getLastImportedUnitPrice(productId: string): Promise<number | null> {

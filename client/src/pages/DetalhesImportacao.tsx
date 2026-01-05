@@ -312,8 +312,8 @@ export default function DetalhesImportacao() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Variação</TableHead>
+                  <TableHead className="w-16">Foto</TableHead>
+                  <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Quantidade</TableHead>
                   {canViewCostUSD && <TableHead className="text-right">Preço Unit. (USD)</TableHead>}
                   {canViewCostUSD && <TableHead className="text-right">Total (USD)</TableHead>}
@@ -325,24 +325,21 @@ export default function DetalhesImportacao() {
                 {importation.items?.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{item.productName}</div>
-                        {item.productDescription && (
-                          <div className="text-sm text-muted-foreground">
-                            {item.productDescription}
-                          </div>
-                        )}
-                      </div>
+                      {item.imageUrl ? (
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.productName}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
-                      {item.color || item.size ? (
-                        <div className="text-sm">
-                          {item.color && <div>{item.color}</div>}
-                          {item.size && <div>{item.size}</div>}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
+                      <div className="font-medium text-xs">{item.sku || "-"}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.productName}</div>
                     </TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     {canViewCostUSD && <TableCell className="text-right">${item.unitPriceUSD.toFixed(2)}</TableCell>}

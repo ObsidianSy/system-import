@@ -45,6 +45,7 @@ const statusColors: Record<string, "default" | "secondary" | "destructive" | "ou
 export default function Importacoes() {
   const [, setLocation] = useLocation();
   const { data: importations, isLoading } = trpc.importations.list.useQuery();
+  const { data: productsWithAggregates, isLoading: isLoadingProducts } = trpc.products.listWithAggregates.useQuery();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const { canViewCostUSD, canViewCostBRL, canEditImportations } = usePermissions();
@@ -308,6 +309,96 @@ export default function Importacoes() {
                     Nova Importação
                   </Button>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Seção de Produtos */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Produtos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingProducts ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : productsWithAggregates && productsWithAggregates.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">Foto</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead className="text-right">Estoque Atual</TableHead>
+                      <TableHead className="text-right">Total em Trânsito</TableHead>
+                      <TableHead className="text-right">Total em Pedido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productsWithAggregates.map((product) => (
+                      <TableRow
+                        key={product.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setLocation(`/produtos/${product.id}`)}
+                      >
+                        <TableCell>
+                          {product.imageUrl ? (
+                            <img 
+                              src={product.imageUrl} 
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-xs">{product.sku || "-"}</div>
+                          <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                            {product.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={product.currentStock <= (product.minStock || 0) ? "text-red-600 font-semibold" : ""}>
+                            {product.currentStock}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.totalInTransit > 0 ? (
+                            <span className="text-blue-600 font-medium">{product.totalInTransit}</span>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.totalInOrders > 0 ? (
+                            <span className="text-yellow-600 font-medium">{product.totalInOrders}</span>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum produto encontrado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Comece cadastrando produtos no sistema
+                </p>
+                <Button onClick={() => setLocation("/produtos/novo")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Produto
+                </Button>
               </div>
             )}
           </CardContent>

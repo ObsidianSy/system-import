@@ -12,6 +12,17 @@ export const productsRouter = router({
     return db.listProducts();
   }),
 
+  listWithAggregates: protectedProcedure.query(async () => {
+    const productsWithAggregates = await db.getProductsWithAggregates();
+    return productsWithAggregates.map(product => ({
+      ...product,
+      averageCostBRL: product.averageCostBRL / 100,
+      averageCostUSD: product.averageCostUSD / 100,
+      salePriceBRL: product.salePriceBRL / 100,
+      lastImportUnitPriceUSD: product.lastImportUnitPriceUSD / 100,
+    }));
+  }),
+
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
