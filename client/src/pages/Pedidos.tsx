@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrencyUSD } from "@/lib/currency";
 import { useLocation } from "wouter";
@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 export default function Pedidos() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { data: products } = trpc.products.list.useQuery();
   const { data: suppliers } = trpc.suppliers.list.useQuery();
 
@@ -29,6 +29,7 @@ export default function Pedidos() {
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState<number>(1);
   const [unitPriceUSD, setUnitPriceUSD] = useState<number>(0);
+  const [freightCostUSD, setFreightCostUSD] = useState<number>(0);
   const utils = trpc.useUtils();
   const { data: current } = trpc.orders.current.useQuery();
   const items = current?.items || [];
@@ -45,6 +46,13 @@ export default function Pedidos() {
     onSuccess: () => utils.orders.current.invalidate() 
   });
 
+  const updateFreightMutation = trpc.orders.updateFreight.useMutation({
+    onSuccess: () => {
+      utils.orders.current.invalidate();
+      toast.success("Frete atualizado");
+    }
+  });
+
   const clearOrderMutation = trpc.orders.clear.useMutation({ 
     onSuccess: () => {
       utils.orders.current.invalidate();
@@ -59,9 +67,47 @@ export default function Pedidos() {
       setSelectedProductId(undefined);
       setQuantity(1);
       setUnitPriceUSD(0);
-      toast.success("Produto adicionado ao pedido");
     }
   });
+
+  // Ref para controlar se os produtos da URL já foram adicionados
+  const hasAddedFromUrl = useRef(false);
+
+  // Adicionar produtos da URL quando a página carregar
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const itemsParam = params.get('items');
+    
+    if (itemsParam && products && products.length > 0 && current?.order?.id && !hasAddedFromUrl.current) {
+      hasAddedFromUrl.current = true;
+      const itemsList = itemsParam.split(',');
+      let addedCount = 0;
+      
+      itemsList.forEach(item => {
+        const [productId, qty] = item.split(':');
+        const quantity = parseInt(qty) || 1;
+        const product = products.find((p: any) => p.id === productId);
+        
+        if (product) {
+          addItemMutation.mutate({
+            orderId: current.order.id,
+            productId: product.id,
+            quantity,
+            unitPriceUSD: product.lastImportUnitPriceUSD || 0,
+          });
+          addedCount++;
+        }
+      });
+      
+      if (addedCount > 0) {
+        toast.success(`${addedCount} produto(s) adicionado(s) ao pedido`);
+        // Limpar a URL
+        setTimeout(() => {
+          window.history.replaceState({}, '', '/pedidos');
+        }, 100);
+      }
+    }
+  }, [products, current?.order?.id]);
 
   const addItem = () => {
     if (!selectedProductId) {
@@ -77,6 +123,7 @@ export default function Pedidos() {
       quantity,
       unitPriceUSD: Math.round(unitPriceUSD * 100),
     });
+    toast.success("Produto adicionado ao pedido");
   };
 
   const removeItemMutation = trpc.orders.removeItem.useMutation({
@@ -90,7 +137,9 @@ export default function Pedidos() {
     removeItemMutation.mutate({ id });
   };
 
-  const totalUSD = items.reduce((s:any, it:any) => s + (it.quantity * it.unitPriceUSD), 0);
+  const totalProductsUSD = items.reduce((s:any, it:any) => s + (it.quantity * it.unitPriceUSD), 0);
+  const freightUSD = current?.order?.freightCostUSD || 0;
+  const totalUSD = totalProductsUSD + freightUSD;
 
   const generateOrderHTML = () => {
     const supplier = suppliers?.find(s => s.id === supplierId);
@@ -217,6 +266,31 @@ export default function Pedidos() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Custo do Frete (USD)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={freightCostUSD / 100}
+                      onChange={(e) => setFreightCostUSD(Math.round((parseFloat(e.target.value) || 0) * 100))}
+                      onBlur={() => {
+                        if (current?.order?.id) {
+                          updateFreightMutation.mutate({
+                            orderId: current.order.id,
+                            freightCostUSD
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Custo estimado do frete internacional
+                  </p>
                 </div>
 
                 <Separator />
@@ -367,7 +441,20 @@ export default function Pedidos() {
                     </CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-muted-foreground">Total Estimado</div>
+                    <div className="text-sm text-muted-foreground mb-1">
+                      <div className="flex justify-between gap-4">
+                        <span>Produtos:</span>
+                        <span>{formatCurrencyUSD(totalProductsUSD / 100)}</span>
+                      </div>
+                      {freightUSD > 0 && (
+                        <div className="flex justify-between gap-4">
+                          <span>Frete:</span>
+                          <span>{formatCurrencyUSD(freightUSD / 100)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="text-sm text-muted-foreground mb-1">Total Estimado</div>
                     <div className="text-2xl font-bold text-primary">{formatCurrencyUSD(totalUSD / 100)}</div>
                   </div>
                 </div>

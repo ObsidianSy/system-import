@@ -269,6 +269,7 @@ export async function listProducts(): Promise<Product[]> {
 }
 
 export async function getProductsWithAggregates(): Promise<Array<Product & { 
+  totalPending: number;
   totalInTransit: number; 
   totalInOrders: number; 
 }>> {
@@ -278,7 +279,23 @@ export async function getProductsWithAggregates(): Promise<Array<Product & {
   // Get all products
   const allProducts = await db.select().from(products).orderBy(products.sku);
   
-  // Calculate quantities in transit (from importations that are pending, in_transit, or customs)
+  // Calculate quantities pending (from importations with status 'pending')
+  const pendingQuery = await db
+    .select({
+      productId: importationItems.productId,
+      totalPending: sql<number>`COALESCE(SUM(${importationItems.quantity}), 0)`.as('totalPending'),
+    })
+    .from(importationItems)
+    .innerJoin(importations, eq(importationItems.importationId, importations.id))
+    .where(
+      and(
+        sql`${importationItems.productId} IS NOT NULL`,
+        eq(importations.status, 'pending')
+      )
+    )
+    .groupBy(importationItems.productId);
+  
+  // Calculate quantities in transit (from importations with status 'in_transit' or 'customs')
   const inTransitQuery = await db
     .select({
       productId: importationItems.productId,
@@ -289,7 +306,7 @@ export async function getProductsWithAggregates(): Promise<Array<Product & {
     .where(
       and(
         sql`${importationItems.productId} IS NOT NULL`,
-        sql`${importations.status} IN ('pending', 'in_transit', 'customs')`
+        sql`${importations.status} IN ('in_transit', 'customs')`
       )
     )
     .groupBy(importationItems.productId);
@@ -311,12 +328,14 @@ export async function getProductsWithAggregates(): Promise<Array<Product & {
     .groupBy(orderItems.productId);
 
   // Create maps for quick lookup
+  const pendingMap = new Map(pendingQuery.map(item => [item.productId!, Number(item.totalPending)]));
   const inTransitMap = new Map(inTransitQuery.map(item => [item.productId!, Number(item.totalInTransit)]));
   const inOrdersMap = new Map(inOrdersQuery.map(item => [item.productId!, Number(item.totalInOrders)]));
 
   // Combine the data
   return allProducts.map(product => ({
     ...product,
+    totalPending: pendingMap.get(product.id) || 0,
     totalInTransit: inTransitMap.get(product.id) || 0,
     totalInOrders: inOrdersMap.get(product.id) || 0,
   }));
@@ -450,7 +469,7 @@ export async function getOrCreatePendingOrder(userId: string, supplierId?: strin
   if (found.length > 0) return found[0];
 
   const id = randomBytes(16).toString("hex");
-  await db.insert(orders).values({ id, userId, supplierId: supplierId || "", createdAt: new Date(), updatedAt: new Date(), status: "pending" });
+  await db.insert(orders).values({ id, userId, supplierId: supplierId || null, createdAt: new Date(), updatedAt: new Date(), status: "pending" });
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   return result[0];
 }

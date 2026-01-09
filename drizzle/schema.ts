@@ -147,7 +147,8 @@ export type InsertImportationItem = typeof importationItems.$inferInsert;
 export const orders = pgTable("orders", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
-  supplierId: text("supplierId").notNull(),
+  supplierId: text("supplierId"),
+  freightCostUSD: integer("freightCostUSD").default(0).notNull(),
   status: text("status", { enum: ["pending", "imported"] }).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),

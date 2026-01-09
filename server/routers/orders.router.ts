@@ -67,6 +67,13 @@ export const ordersRouter = router({
       return { success: true };
     }),
 
+  updateFreight: protectedProcedure
+    .input(z.object({ orderId: z.string(), freightCostUSD: z.number() }))
+    .mutation(async ({ input }) => {
+      await db.updateOrder(input.orderId, { freightCostUSD: input.freightCostUSD });
+      return { success: true };
+    }),
+
   import: protectedProcedure
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input }) => {

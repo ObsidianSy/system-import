@@ -396,15 +396,17 @@ export default function DetalhesProduto() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Estoque Real</p>
-                    <p className="font-medium">
-                      {isLoadingStock ? (
-                        <Skeleton className="h-4 w-24" />
-                      ) : product.sku ? (
-                        `${realStock} unidades`
-                      ) : (
-                        "Não disponível"
-                      )}
-                    </p>
+                    {isLoadingStock ? (
+                      <Skeleton className="h-4 w-24" />
+                    ) : (
+                      <p className="font-medium">
+                        {product.sku ? (
+                          `${realStock} unidades`
+                        ) : (
+                          "Não disponível"
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Cadastrado em</p>

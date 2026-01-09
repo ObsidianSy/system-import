@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock } from "lucide-react";
+import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock, ListPlus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/table";
 import { useLocation } from "wouter";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useExternalStock } from "@/_core/hooks/useExternalStock";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const statusLabels: Record<string, string> = {
   all: "Todos os Status",
@@ -48,7 +50,76 @@ export default function Importacoes() {
   const { data: productsWithAggregates, isLoading: isLoadingProducts } = trpc.products.listWithAggregates.useQuery();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [orderQuantities, setOrderQuantities] = useState<Map<string, number>>(new Map());
   const { canViewCostUSD, canViewCostBRL, canEditImportations } = usePermissions();
+
+  // Buscar estoque real da API externa para todos os produtos
+  const skus = useMemo(() => 
+    productsWithAggregates?.map(p => p.sku).filter(Boolean) as string[] || [], 
+    [productsWithAggregates]
+  );
+  const { getStock } = useExternalStock(skus, { enabled: skus.length > 0 });
+
+  // Gerenciar seleção de produtos
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+        // Remove a quantidade quando deseleciona
+        setOrderQuantities(prevQty => {
+          const newQty = new Map(prevQty);
+          newQty.delete(productId);
+          return newQty;
+        });
+      } else {
+        newSet.add(productId);
+        // Define quantidade inicial como 1 quando seleciona
+        setOrderQuantities(prevQty => {
+          const newQty = new Map(prevQty);
+          newQty.set(productId, 1);
+          return newQty;
+        });
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllProducts = () => {
+    if (selectedProducts.size === productsWithAggregates?.length) {
+      setSelectedProducts(new Set());
+      setOrderQuantities(new Map());
+    } else {
+      const allIds = productsWithAggregates?.map(p => p.id) || [];
+      setSelectedProducts(new Set(allIds));
+      // Define quantidade inicial como 1 para todos
+      const newQuantities = new Map();
+      allIds.forEach(id => newQuantities.set(id, 1));
+      setOrderQuantities(newQuantities);
+    }
+  };
+
+  const updateOrderQuantity = (productId: string, quantity: number) => {
+    if (quantity > 0) {
+      setOrderQuantities(prev => {
+        const newQty = new Map(prev);
+        newQty.set(productId, quantity);
+        return newQty;
+      });
+    }
+  };
+
+  const handleCreateOrder = () => {
+    if (selectedProducts.size > 0) {
+      // Criar query string com produtos e quantidades
+      const items = Array.from(selectedProducts).map(id => {
+        const qty = orderQuantities.get(id) || 1;
+        return `${id}:${qty}`;
+      }).join(',');
+      setLocation(`/pedidos?items=${items}`);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -317,7 +388,19 @@ export default function Importacoes() {
         {/* Seção de Produtos */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Produtos</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Produtos</CardTitle>
+              {selectedProducts.size > 0 && (
+                <Button 
+                  size="sm" 
+                  onClick={handleCreateOrder}
+                  className="h-8"
+                >
+                  <ListPlus className="h-4 w-4 mr-2" />
+                  Criar Pedido ({selectedProducts.size})
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {isLoadingProducts ? (
@@ -327,64 +410,105 @@ export default function Importacoes() {
                 ))}
               </div>
             ) : productsWithAggregates && productsWithAggregates.length > 0 ? (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">Foto</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead className="text-right">Estoque Atual</TableHead>
-                      <TableHead className="text-right">Total em Trânsito</TableHead>
-                      <TableHead className="text-right">Total em Pedido</TableHead>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedProducts.size === productsWithAggregates.length && productsWithAggregates.length > 0}
+                          onCheckedChange={toggleAllProducts}
+                        />
+                      </TableHead>
+                      <TableHead className="w-20">Foto</TableHead>
+                      <TableHead className="min-w-[200px]">Produto</TableHead>
+                      <TableHead className="text-center w-32">Total Importado</TableHead>
+                      <TableHead className="text-center w-28">Estoque Real</TableHead>
+                      <TableHead className="text-center w-24">Em Trânsito</TableHead>
+                      <TableHead className="text-center w-24">Pendente</TableHead>
+                      <TableHead className="text-center w-24">Em Pedido</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productsWithAggregates.map((product) => (
+                    {productsWithAggregates.map((product) => {
+                      const realStock = product.sku ? getStock(product.sku) : 0;
+                      const isSelected = selectedProducts.has(product.id);
+                      return (
                       <TableRow
                         key={product.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}
                         onClick={() => setLocation(`/produtos/${product.id}`)}
                       >
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="py-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleProductSelection(product.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-3">
                           {product.imageUrl ? (
                             <img 
                               src={product.imageUrl} 
                               alt={product.name}
-                              className="w-12 h-12 object-cover rounded"
+                              className="w-14 h-14 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                              <Package className="h-5 w-5 text-muted-foreground" />
+                            <div className="w-14 h-14 bg-muted rounded flex items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground" />
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-xs">{product.sku || "-"}</div>
-                          <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                        <TableCell className="py-3">
+                          <div className="font-medium text-sm mb-1">{product.sku || "-"}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[250px]">
                             {product.name}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <span className={product.currentStock <= (product.minStock || 0) ? "text-red-600 font-semibold" : ""}>
+                        <TableCell className="text-center py-3">
+                          <span className="text-muted-foreground text-base">
                             {product.currentStock}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center py-3">
+                          <span className={realStock <= (product.minStock || 0) ? "text-red-600 font-bold text-base" : "font-semibold text-base"}>
+                            {realStock}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center py-3">
                           {product.totalInTransit > 0 ? (
-                            <span className="text-blue-600 font-medium">{product.totalInTransit}</span>
+                            <span className="text-blue-600 font-semibold text-base">{product.totalInTransit}</span>
                           ) : (
-                            <span className="text-muted-foreground">0</span>
+                            <span className="text-muted-foreground text-base">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {product.totalInOrders > 0 ? (
-                            <span className="text-yellow-600 font-medium">{product.totalInOrders}</span>
+                        <TableCell className="text-center py-3">
+                          {product.totalPending > 0 ? (
+                            <span className="text-orange-600 font-semibold text-base">{product.totalPending}</span>
                           ) : (
-                            <span className="text-muted-foreground">0</span>
+                            <span className="text-muted-foreground text-base">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center py-3">
+                          {product.totalInOrders > 0 && !selectedProducts.has(product.id) ? (
+                            <span className="text-yellow-600 font-semibold text-base">{product.totalInOrders}</span>
+                          ) : selectedProducts.has(product.id) ? (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={orderQuantities.get(product.id) || 1}
+                                onChange={(e) => updateOrderQuantity(product.id, parseInt(e.target.value) || 1)}
+                                className="w-20 h-8 text-center mx-auto"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-base">-</span>
                           )}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </div>
