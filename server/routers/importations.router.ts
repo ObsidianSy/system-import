@@ -346,4 +346,36 @@ export const importationsRouter = router({
       await linkImportationItemToProduct(input.itemId, input.productId);
       return { success: true };
     }),
+
+  getPrintData: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const importation = await db.getImportation(input.id);
+      if (!importation) return null;
+      
+      const items = await db.getImportationItems(input.id);
+      const supplier = await db.getSupplier(importation.supplierId);
+      
+      return {
+        ...importation,
+        exchangeRate: centsToDecimal(importation.exchangeRate),
+        subtotalUSD: centsToDecimal(importation.subtotalUSD),
+        freightUSD: centsToDecimal(importation.freightUSD),
+        totalUSD: centsToDecimal(importation.totalUSD),
+        subtotalBRL: centsToDecimal(importation.subtotalBRL),
+        freightBRL: centsToDecimal(importation.freightBRL),
+        importTax: centsToDecimal(importation.importTax),
+        icms: centsToDecimal(importation.icms),
+        otherTaxes: centsToDecimal(importation.otherTaxes),
+        totalCostBRL: centsToDecimal(importation.totalCostBRL),
+        supplier,
+        items: items.map(item => ({
+          ...item,
+          unitPriceUSD: centsToDecimal(item.unitPriceUSD),
+          totalUSD: centsToDecimal(item.totalUSD),
+          unitCostBRL: centsToDecimal(item.unitCostBRL),
+          totalCostBRL: centsToDecimal(item.totalCostBRL),
+        })),
+      };
+    }),
 });
