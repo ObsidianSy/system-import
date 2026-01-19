@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -155,6 +155,24 @@ export default function EditarImportacaoCompleta() {
     };
   };
 
+  const calculateItemCosts = (item: any) => {
+    const quantity = parseFloat(item.quantity) || 0;
+    const unitPriceUSD = parseFloat(item.unitPriceUSD) || 0;
+    const totalUSD = quantity * unitPriceUSD;
+    const rate = parseFloat(exchangeRate) || 1;
+    
+    const totals = calculateTotals();
+    const itemProportion = totals.subtotalUSD > 0 ? totalUSD / totals.subtotalUSD : 0;
+    const itemCostBRL = (totals.totalCostBRL * itemProportion);
+    const unitCostBRL = quantity > 0 ? itemCostBRL / quantity : 0;
+    
+    return {
+      totalUSD,
+      unitCostBRL,
+      totalCostBRL: itemCostBRL,
+    };
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -230,23 +248,63 @@ export default function EditarImportacaoCompleta() {
   return (
     <DashboardLayout>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="flex items-center gap-3">
+        {/* Header com Totais */}
+        <div className="flex items-start gap-3">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 mt-1"
             onClick={() => setLocation(`/importacoes/${importationId}`)}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold">Editar Valores e Produtos</h1>
+            <h1 className="text-xl font-bold mb-1">Editar Valores e Produtos</h1>
             <p className="text-xs text-muted-foreground">
               Altere quantidades, preços, impostos, frete e produtos
             </p>
+            
+            {/* Totais no Header */}
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Total USD</p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    ${totals.totalUSD.toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatCurrency(totals.totalBRL)} • Frete: ${(parseFloat(freightUSD) || 0).toFixed(2)}
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Impostos</p>
+                  <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                    {formatCurrency(totals.importTax + totals.icms)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    II {importTaxRate}% + ICMS {icmsRate}%
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Custo Total</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                    {formatCurrency(totals.totalCostBRL)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0)} unidades • {items.length} produto{items.length !== 1 ? 's' : ''}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-          <Button type="submit" disabled={updateImportation.isPending} size="sm">
+          <Button type="submit" disabled={updateImportation.isPending} size="sm" className="mt-1">
             <Save className="h-4 w-4 mr-2" />
             Salvar Alterações
           </Button>
@@ -371,170 +429,170 @@ export default function EditarImportacaoCompleta() {
         {/* Produtos */}
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Produtos</CardTitle>
-            <Button type="button" onClick={handleAddItem} size="sm" className="h-7">
+            <CardTitle className="text-sm">Produtos Importados</CardTitle>
+            <Button type="button" onClick={handleAddItem} size="sm" className="h-8">
               <Plus className="h-3 w-3 mr-1" />
               Adicionar Produto
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {items.map((item, index) => (
-                <Card key={index} className="p-2.5">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold">Produto {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleRemoveItem(index)}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-2 md:grid-cols-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Vincular a Produto Existente</Label>
-                        <Select
-                          value={item.productId}
-                          onValueChange={(value) => handleItemChange(index, "productId", value)}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products?.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.sku || product.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs">Nome do Produto *</Label>
-                        <Input
-                          value={item.productName}
-                          onChange={(e) => handleItemChange(index, "productName", e.target.value)}
-                          placeholder="kit beads 6 unidades"
-                          required
-                          className="h-8 text-sm"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs">Código do Fornecedor</Label>
-                        <Input
-                          value={item.supplierProductCode}
-                          onChange={(e) => handleItemChange(index, "supplierProductCode", e.target.value)}
-                          placeholder="Código usado pelo fornecedor"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Cor</Label>
-                        <Input
-                          value={item.color}
-                          onChange={(e) => handleItemChange(index, "color", e.target.value)}
-                          placeholder="Cor"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs">Tamanho</Label>
-                        <Input
-                          value={item.size}
-                          onChange={(e) => handleItemChange(index, "size", e.target.value)}
-                          placeholder="Tamanho"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs">Quantidade *</Label>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                          placeholder="10"
-                          required
-                          className="h-8 text-sm"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs">Preço Unit. USD *</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.unitPriceUSD}
-                          onChange={(e) => handleItemChange(index, "unitPriceUSD", e.target.value)}
-                          placeholder="17,84"
-                          required
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Descrição</Label>
-                      <Textarea
-                        value={item.productDescription}
-                        onChange={(e) => handleItemChange(index, "productDescription", e.target.value)}
-                        placeholder="Descrição do produto..."
-                        rows={1}
-                        className="text-sm resize-none"
-                      />
-                    </div>
-
-                    <div className="pt-1 border-t">
-                      <p className="text-xs text-right font-semibold">
-                        Total: ${((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPriceUSD) || 0)).toFixed(2)} USD
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-
-              {items.length === 0 && (
-                <div className="text-center py-6 text-xs text-muted-foreground">
-                  Nenhum produto adicionado. Clique em "Adicionar Produto" para começar.
-                </div>
-              )}
-            </div>
+          <CardContent className="px-2 pb-2">
+            {items.length === 0 ? (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                Nenhum produto adicionado. Clique em "Adicionar Produto" para começar.
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-16 h-9 text-[10px] p-2">Foto</TableHead>
+                      <TableHead className="text-[10px] p-2 w-[180px]">SKU / Produto</TableHead>
+                      <TableHead className="text-center w-16 h-9 text-[10px] p-2">Qtd</TableHead>
+                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Preço Unit.<br/>(USD)</TableHead>
+                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Total<br/>(USD)</TableHead>
+                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Custo Unit.<br/>(BRL)</TableHead>
+                      <TableHead className="text-right w-28 h-9 text-[10px] p-2">Custo Total<br/>(BRL)</TableHead>
+                      <TableHead className="w-10 h-9 p-2"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, index) => {
+                      const costs = calculateItemCosts(item);
+                      const selectedProduct = products?.find(p => p.id === item.productId);
+                      
+                      return (
+                        <TableRow key={index} className="group">
+                          <TableCell className="p-2">
+                            {selectedProduct?.imageUrl ? (
+                              <img 
+                                src={selectedProduct.imageUrl} 
+                                alt={item.productName}
+                                className="w-14 h-14 object-cover rounded border"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 bg-muted rounded flex items-center justify-center border">
+                                <Package className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Select
+                              value={item.productId}
+                              onValueChange={(value) => handleItemChange(index, "productId", value)}
+                            >
+                              <SelectTrigger className="h-7 text-[11px] w-full max-w-[170px]">
+                                <SelectValue placeholder="Selecionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products?.map((product) => (
+                                  <SelectItem key={product.id} value={product.id} className="text-xs">
+                                    {product.sku ? `${product.sku} - ${product.name}` : product.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedProduct && (
+                              <div className="mt-0.5 space-y-0 max-w-[170px]">
+                                {selectedProduct.sku && (
+                                  <div className="text-[10px] font-semibold text-muted-foreground leading-tight truncate">
+                                    {selectedProduct.sku}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-foreground leading-tight truncate">
+                                  {selectedProduct.name}
+                                </div>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center p-2">
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                              className="h-7 text-sm text-center font-semibold w-14 mx-auto"
+                              min="1"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right p-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.unitPriceUSD}
+                              onChange={(e) => handleItemChange(index, "unitPriceUSD", e.target.value)}
+                              className="h-7 text-[11px] text-right w-20 ml-auto"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right p-2">
+                            <span className="text-sm font-semibold">
+                              ${costs.totalUSD.toFixed(2)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right p-2">
+                            <span className="text-[11px]">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(costs.unitCostBRL)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right p-2">
+                            <span className="text-sm font-semibold">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(costs.totalCostBRL)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleRemoveItem(index)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Resumo */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Resumo dos Cálculos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Resumo USD</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal Produtos:</span>
-                  <span className="font-medium">${totals.subtotalUSD.toFixed(2)}</span>
+                  <span className="font-semibold">${totals.subtotalUSD.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Frete:</span>
-                  <span className="font-medium">${(parseFloat(freightUSD) || 0).toFixed(2)}</span>
+                  <span className="font-semibold">${(parseFloat(freightUSD) || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between border-t pt-1.5 text-xs">
+                <div className="flex justify-between border-t pt-1.5">
                   <span className="font-semibold">Total USD:</span>
-                  <span className="font-bold">${totals.totalUSD.toFixed(2)}</span>
+                  <span className="font-bold text-lg text-primary">${totals.totalUSD.toFixed(2)}</span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Custo Final BRL</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Total em BRL:</span>
@@ -549,13 +607,13 @@ export default function EditarImportacaoCompleta() {
                   <span className="font-medium">{formatCurrency(totals.icms)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1.5">
-                  <span className="text-xs font-semibold">Custo Total BRL:</span>
-                  <span className="font-bold text-sm">{formatCurrency(totals.totalCostBRL)}</span>
+                  <span className="text-sm font-semibold">Custo Total:</span>
+                  <span className="font-bold text-lg text-green-600">{formatCurrency(totals.totalCostBRL)}</span>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </form>
     </DashboardLayout>
   );
