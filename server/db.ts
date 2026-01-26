@@ -447,7 +447,8 @@ export async function getImportationItems(importationId: string): Promise<Import
     })
     .from(importationItems)
     .leftJoin(products, eq(importationItems.productId, products.id))
-    .where(eq(importationItems.importationId, importationId));
+    .where(eq(importationItems.importationId, importationId))
+    .orderBy(products.sku);
 }
 
 export async function getLastImportedUnitPrice(productId: string): Promise<number | null> {

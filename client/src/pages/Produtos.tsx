@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency } from "@/lib/currency";
-import { Plus, Package, AlertTriangle, Filter, X, Search, Grid3x3, List, MoreVertical, Edit, Trash2, Eye, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
+import { Plus, Package, AlertTriangle, Filter, X, Search, Grid3x3, List, MoreVertical, Edit, Trash2, Eye, EyeOff, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
@@ -58,7 +58,8 @@ export default function Produtos() {
   const [stockFilter, setStockFilter] = useState("all");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("sku");
+  const [showAverageCost, setShowAverageCost] = useState(true);
 
   const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => {
@@ -151,8 +152,10 @@ export default function Produtos() {
           return stockB - stockA;
         }
         case "name":
-        default:
           return a.name.localeCompare(b.name);
+        case "sku":
+        default:
+          return (a.sku || "").localeCompare(b.sku || "");
       }
     });
 
@@ -165,7 +168,7 @@ export default function Produtos() {
     setStockFilter("all");
     setPriceMin("");
     setPriceMax("");
-    setSortBy("name");
+    setSortBy("sku");
   };
 
   const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || priceMin || priceMax;
@@ -277,6 +280,16 @@ export default function Produtos() {
             >
               <List className="h-4 w-4" />
             </Button>
+            {canViewCostBRL && viewMode === "list" && (
+              <Button
+                variant={showAverageCost ? "default" : "outline"}
+                size="icon"
+                onClick={() => setShowAverageCost(!showAverageCost)}
+                title={showAverageCost ? "Ocultar Custo Médio" : "Mostrar Custo Médio"}
+              >
+                {showAverageCost ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
+            )}
             <Button 
               onClick={() => setLocation("/produtos/novo")}
               disabled={!canEditProducts}
@@ -398,6 +411,7 @@ export default function Produtos() {
                 <SelectValue placeholder="Ordenar" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="sku">SKU</SelectItem>
                 <SelectItem value="name">Nome</SelectItem>
                 <SelectItem value="price-asc">Menor Preço</SelectItem>
                 <SelectItem value="price-desc">Maior Preço</SelectItem>
@@ -665,6 +679,16 @@ export default function Produtos() {
                             </Badge>
                           )}
                         </div>
+
+                        {/* Custo Médio (BRL) - Apenas para admin */}
+                        {canViewCostBRL && showAverageCost && (
+                          <div className="text-right min-w-[100px]">
+                            <div className="text-sm text-muted-foreground">Custo Médio</div>
+                            <div className="font-medium text-blue-600">
+                              {product.averageCostBRL > 0 ? formatCurrency(product.averageCostBRL) : "-"}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Preço */}
                         <div className="text-right min-w-[100px]">

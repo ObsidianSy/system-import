@@ -50,20 +50,9 @@ export async function processImportationDelivery(importationId: string): Promise
     const previousAverageCost = product.averageCostBRL;
     const previousAverageCostUSD = product.averageCostUSD;
 
-    // Calcular custo médio ponderado (BRL)
-    // Fórmula: ((estoque_anterior * custo_médio_anterior) + (quantidade_nova * custo_novo)) / estoque_total
-    const previousTotalCost = previousStock * product.averageCostBRL;
-    const newTotalCost = item.quantity * item.unitCostBRL;
-    const averageCostBRL = newStock > 0 
-      ? Math.round((previousTotalCost + newTotalCost) / newStock)
-      : item.unitCostBRL;
-
-    // Calcular custo médio ponderado (USD)
-    const previousTotalCostUSD = previousStock * product.averageCostUSD;
-    const newTotalCostUSD = item.quantity * item.unitPriceUSD;
-    const averageCostUSD = newStock > 0
-      ? Math.round((previousTotalCostUSD + newTotalCostUSD) / newStock)
-      : item.unitPriceUSD;
+    // SOLUÇÃO SIMPLES: Custo médio = Custo unitário da última importação entregue
+    const averageCostBRL = item.unitCostBRL;
+    const averageCostUSD = item.unitPriceUSD;
 
     // Atualizar o produto
     await db

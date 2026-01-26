@@ -54,7 +54,7 @@ export default function Galeria() {
   const [stockFilter, setStockFilter] = useState("all");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("sku");
   const [channelFilter, setChannelFilter] = useState("all"); // all, announced, not-announced, specific-channel
   const [specificChannel, setSpecificChannel] = useState("");
   
@@ -218,8 +218,10 @@ export default function Galeria() {
           return stockB - stockA;
         }
         case "name":
-        default:
           return a.name.localeCompare(b.name);
+        case "sku":
+        default:
+          return (a.sku || "").localeCompare(b.sku || "");
       }
     });
 
@@ -232,7 +234,7 @@ export default function Galeria() {
     setStockFilter("all");
     setPriceMin("");
     setPriceMax("");
-    setSortBy("name");
+    setSortBy("sku");
     setChannelFilter("all");
     setSpecificChannel("");
   };
@@ -685,6 +687,7 @@ export default function Galeria() {
                     <SelectValue placeholder="Ordenar" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="sku">SKU</SelectItem>
                     <SelectItem value="name">Nome</SelectItem>
                     <SelectItem value="price-asc">Menor Preço</SelectItem>
                     <SelectItem value="price-desc">Maior Preço</SelectItem>
