@@ -38,10 +38,7 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip para endpoints autenticados (já protegidos por auth)
-    return req.path.includes('/api/trpc') && !req.path.includes('auth.login');
-  },
+  // Rate limiting applies to all API requests including authenticated ones
   handler: (req, res) => {
     logWarn('API rate limit exceeded', {
       ip: req.ip,

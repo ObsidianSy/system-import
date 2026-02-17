@@ -128,7 +128,7 @@ export default function Galeria() {
   // Extrair categorias únicas
   const categories = useMemo(() => {
     if (!products) return [];
-    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter((c): c is string => Boolean(c))));
     return uniqueCategories.sort();
   }, [products]);
 
@@ -259,7 +259,6 @@ export default function Galeria() {
 
   const handleEdit = (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
-    console.log('[Galeria] Navegando para edição:', `/produtos/${productId}/editar?from=galeria`);
     setLocation(`/produtos/${productId}/editar?from=galeria`);
   };
 
@@ -278,14 +277,8 @@ export default function Galeria() {
         quantity: 1,
         unitPriceUSD: product.lastImportUnitPriceUSD || 0,
       });
-      
-      console.log('[Galeria] Produto adicionado ao pedido:', {
-        productId: product.id,
-        productName: product.name,
-        orderId: currentOrder.order.id,
-      });
     } catch (error) {
-      console.error('[Galeria] Erro ao adicionar ao pedido:', error);
+      // error handled by mutation onError callback
     }
   };
 
@@ -375,7 +368,7 @@ export default function Galeria() {
       toast.success(`${productsToAdd.length} produtos adicionados ao pedido!`);
       clearSelection();
     } catch (error) {
-      console.error('[Galeria] Erro ao adicionar em lote:', error);
+      // error handled by mutation onError callback
     }
   };
 
@@ -784,7 +777,6 @@ export default function Galeria() {
                     selectedProducts.has(product.id) ? 'ring-2 ring-primary border-primary' : ''
                   }`}
                   onClick={() => {
-                    console.log('[Galeria] Navegando para:', `/produtos/${product.id}?from=galeria`);
                     setLocation(`/produtos/${product.id}?from=galeria`);
                   }}
                 >

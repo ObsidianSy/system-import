@@ -3,17 +3,30 @@ import { z } from "zod";
 import { randomBytes } from "crypto";
 import * as db from "../db";
 
+import { centsToDecimal, decimalToCents } from "../../shared/utils/currency";
+
 const generateId = () => randomBytes(16).toString("hex");
-const centsToDecimal = (cents: number) => cents / 100;
-const decimalToCents = (decimal: number) => Math.round(decimal * 100);
 
 export const importationsRouter = router({
   list: protectedProcedure.query(async () => {
-    const imports = await db.listImportations();
-    
-    // Fetch items for all importations to allow detailed reporting
-    const importsWithItems = await Promise.all(imports.map(async (imp) => {
-      const items = await db.getImportationItems(imp.id);
+    const [imports, allItems] = await Promise.all([
+      db.listImportations(),
+      db.getAllImportationItems(),
+    ]);
+
+    // Group items by importationId in a single pass (2 queries instead of N+1)
+    const itemsByImportation = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const existing = itemsByImportation.get(item.importationId);
+      if (existing) {
+        existing.push(item);
+      } else {
+        itemsByImportation.set(item.importationId, [item]);
+      }
+    }
+
+    return imports.map((imp) => {
+      const items = itemsByImportation.get(imp.id) || [];
       return {
         ...imp,
         items: items.map(item => ({
@@ -34,9 +47,7 @@ export const importationsRouter = router({
         otherTaxes: centsToDecimal(imp.otherTaxes),
         totalCostBRL: centsToDecimal(imp.totalCostBRL),
       };
-    }));
-    
-    return importsWithItems;
+    });
   }),
 
   get: protectedProcedure
@@ -77,12 +88,12 @@ export const importationsRouter = router({
       supplierId: z.string(),
       importDate: z.date(),
       status: z.enum(["pending", "in_transit", "customs", "delivered", "cancelled"]).default("pending"),
-      exchangeRate: z.number(),
-      subtotalUSD: z.number(),
-      freightUSD: z.number(),
-      importTaxRate: z.number(), // Tax rate in percentage
-      icmsRate: z.number(), // Tax rate in percentage
-      otherTaxes: z.number().default(0),
+      exchangeRate: z.number().positive(),
+      subtotalUSD: z.number().min(0),
+      freightUSD: z.number().min(0),
+      importTaxRate: z.number().min(0).max(100),
+      icmsRate: z.number().min(0).max(100),
+      otherTaxes: z.number().min(0).default(0),
       shippingMethod: z.string().optional(),
       trackingNumber: z.string().optional(),
       estimatedDelivery: z.date().optional(),
@@ -95,8 +106,8 @@ export const importationsRouter = router({
         productDescription: z.string().optional(),
         color: z.string().optional(),
         size: z.string().optional(),
-        quantity: z.number(),
-        unitPriceUSD: z.number(),
+        quantity: z.number().int().positive(),
+        unitPriceUSD: z.number().min(0),
       })),
     }))
     .mutation(async ({ input }) => {
@@ -184,21 +195,28 @@ export const importationsRouter = router({
       
       // Se mudou para "delivered", processar entrada de estoque
       if (status === "delivered" && currentImportation.status !== "delivered") {
-        const { processImportationDelivery } = await import("../importationHelpers");
-        await processImportationDelivery(id);
-        
-        // Definir data de entrega se não foi fornecida
+        try {
+          const { processImportationDelivery } = await import("../importationHelpers");
+          await processImportationDelivery(id);
+        } catch (error) {
+          throw new Error(`Falha ao processar entrega: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
         if (!data.actualDelivery) {
           data.actualDelivery = new Date();
         }
       }
-      
+
       // Se estava "delivered" e mudou para outro status, reverter entrada
       if (currentImportation.status === "delivered" && status && status !== "delivered") {
-        const { revertImportationDelivery } = await import("../importationHelpers");
-        await revertImportationDelivery(id);
+        try {
+          const { revertImportationDelivery } = await import("../importationHelpers");
+          await revertImportationDelivery(id);
+        } catch (error) {
+          throw new Error(`Falha ao reverter entrega: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
-      
+
       return db.updateImportation(id, { status, ...data });
     }),
 
@@ -208,11 +226,11 @@ export const importationsRouter = router({
       invoiceNumber: z.string().optional(),
       supplierId: z.string(),
       importDate: z.date(),
-      exchangeRate: z.number(),
-      subtotalUSD: z.number(),
-      freightUSD: z.number(),
-      importTaxRate: z.number(),
-      icmsRate: z.number(),
+      exchangeRate: z.number().positive(),
+      subtotalUSD: z.number().min(0),
+      freightUSD: z.number().min(0),
+      importTaxRate: z.number().min(0).max(100),
+      icmsRate: z.number().min(0).max(100),
       notes: z.string().optional(),
       items: z.array(z.object({
         id: z.string().optional(),
@@ -222,8 +240,8 @@ export const importationsRouter = router({
         supplierProductCode: z.string().optional(),
         color: z.string().optional(),
         size: z.string().optional(),
-        quantity: z.number(),
-        unitPriceUSD: z.number(),
+        quantity: z.number().int().positive(),
+        unitPriceUSD: z.number().min(0),
       })),
     }))
     .mutation(async ({ input }) => {

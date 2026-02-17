@@ -44,10 +44,10 @@ export const productsRouter = router({
       ncmCode: z.string().optional(),
       category: z.string().optional(),
       imageUrl: z.string().optional(),
-      currentStock: z.number().default(0),
-      minStock: z.number().default(0),
-      averageCostUSD: z.number().default(0),
-      lastImportUnitPriceUSD: z.number().default(0),
+      currentStock: z.number().int().min(0).default(0),
+      minStock: z.number().int().min(0).default(0),
+      averageCostUSD: z.number().min(0).default(0),
+      lastImportUnitPriceUSD: z.number().min(0).default(0),
       advertisedChannels: z.array(z.string()).default([]),
     }))
     .mutation(async ({ input }) => {
@@ -67,22 +67,16 @@ export const productsRouter = router({
       ncmCode: z.string().optional(),
       category: z.string().optional(),
       imageUrl: z.string().optional(),
-      currentStock: z.number().optional(),
-      minStock: z.number().optional(),
-      salePriceBRL: z.number().optional(),
-      averageCostBRL: z.number().optional(),
-      averageCostUSD: z.number().optional(),
-      lastImportUnitPriceUSD: z.number().optional(),
+      currentStock: z.number().int().min(0).optional(),
+      minStock: z.number().int().min(0).optional(),
+      salePriceBRL: z.number().min(0).optional(),
+      averageCostBRL: z.number().min(0).optional(),
+      averageCostUSD: z.number().min(0).optional(),
+      lastImportUnitPriceUSD: z.number().min(0).optional(),
       advertisedChannels: z.array(z.string()).optional(),
     }))
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
-      
-      // Removed automatic price update logic to prevent unwanted changes
-      // if (data.averageCostBRL !== undefined && data.salePriceBRL === undefined) {
-      //   data.salePriceBRL = data.averageCostBRL + 500; // +R$ 5,00 (500 centavos)
-      // }
-      
       return db.updateProduct(id, data);
     }),
 

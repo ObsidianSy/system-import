@@ -35,6 +35,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { usePermissions } from "@/hooks/usePermissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Produtos() {
   const [, setLocation] = useLocation();
@@ -60,6 +70,7 @@ export default function Produtos() {
   const [priceMax, setPriceMax] = useState("");
   const [sortBy, setSortBy] = useState("sku");
   const [showAverageCost, setShowAverageCost] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => {
@@ -84,7 +95,7 @@ export default function Produtos() {
   // Extrair categorias únicas
   const categories = useMemo(() => {
     if (!products) return [];
-    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter((c): c is string => Boolean(c))));
     return uniqueCategories.sort();
   }, [products]);
 
@@ -175,9 +186,7 @@ export default function Produtos() {
 
   const handleDelete = (e: React.MouseEvent, productId: string, productName: string) => {
     e.stopPropagation();
-    if (window.confirm(`Tem certeza que deseja excluir "${productName}"?`)) {
-      deleteProduct.mutate({ id: productId });
-    }
+    setDeleteConfirm({ id: productId, name: productName });
   };
 
   const handleAddToOrder = async (e: React.MouseEvent, product: any) => {
@@ -243,6 +252,7 @@ export default function Produtos() {
   }
 
   return (
+    <>
     <DashboardLayout>
       <div className="space-y-4">
         {/* Header */}
@@ -783,5 +793,31 @@ export default function Produtos() {
         )}
       </div>
     </DashboardLayout>
+
+    <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir "{deleteConfirm?.name}"? Esta acao nao pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deleteConfirm) {
+                deleteProduct.mutate({ id: deleteConfirm.id });
+                setDeleteConfirm(null);
+              }
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

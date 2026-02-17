@@ -224,7 +224,8 @@ export default function Pedidos() {
     if (!w) return;
     w.document.write(generateOrderHTML());
     w.document.close();
-    w.onload = () => w.print();
+    // Use setTimeout to ensure content is rendered before printing
+    setTimeout(() => w.print(), 300);
   };
 
   return (
@@ -383,14 +384,14 @@ export default function Pedidos() {
                   Imprimir Pedido
                 </Button>
                 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
-                  onClick={() => window.alert('Funcionalidade de envio por email em desenvolvimento')}
-                  disabled={items.length === 0}
+                  disabled
+                  title="Em breve"
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  Enviar por Email
+                  Enviar por Email (em breve)
                 </Button>
 
                 <Button 

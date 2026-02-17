@@ -39,6 +39,24 @@ async function startServer() {
   
   logInfo('📦 Configuring middleware');
   
+  // CORS configuration
+  app.use((req, res, next) => {
+    const allowedOrigins = process.env.NODE_ENV === "development"
+      ? ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"]
+      : [req.headers.origin || ""].filter(Boolean);
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

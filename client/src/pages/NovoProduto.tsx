@@ -33,20 +33,20 @@ export default function NovoProduto() {
       // Upload image if selected
       if (imageFile) {
         try {
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            const base64 = reader.result as string;
-            const base64Data = base64.split(',')[1];
-            
-            await uploadImage.mutateAsync({
-              productId: product.id,
-              imageData: base64Data,
-              mimeType: imageFile.type,
-            });
-          };
-          reader.readAsDataURL(imageFile);
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Falha ao ler imagem"));
+            reader.readAsDataURL(imageFile);
+          });
+          const base64Data = base64.split(',')[1];
+          await uploadImage.mutateAsync({
+            productId: product.id,
+            imageData: base64Data,
+            mimeType: imageFile.type,
+          });
         } catch (error) {
-          console.error("Error uploading image:", error);
+          toast.error("Erro ao fazer upload da imagem");
         }
       }
       

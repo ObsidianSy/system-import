@@ -72,9 +72,6 @@ export default function ImportarExcel() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-      console.log('========== INÍCIO DO PARSING ==========');
-      console.log('Total de linhas:', jsonData.length);
-
       // Tentar extrair dados da fatura
       const parsed: ParsedData = {
         products: []
@@ -87,25 +84,20 @@ export default function ImportarExcel() {
 
         const firstCell = row[0]?.toString().toLowerCase() || '';
         const wholeLine = row.join(' ').toLowerCase();
-        
-        console.log(`Linha ${i}:`, row);
 
         // Número da fatura
         if (firstCell.includes('invoice') && !wholeLine.includes('total')) {
           parsed.invoiceNumber = row[1]?.toString();
-          console.log('→ Invoice Number:', parsed.invoiceNumber);
         }
 
         // Data
         if (firstCell.includes('date')) {
           parsed.importDate = row[1]?.toString();
-          console.log('→ Date:', parsed.importDate);
         }
 
         // Método de envio
         if (firstCell.includes('shipping')) {
           parsed.shippingMethod = row[1]?.toString();
-          console.log('→ Shipping:', parsed.shippingMethod);
         }
 
         // SUBTOTAL - buscar valor explicitamente
@@ -113,8 +105,6 @@ export default function ImportarExcel() {
           for (let j = 0; j < row.length; j++) {
             const cellValue = row[j];
             if (typeof cellValue === 'number' && cellValue > 0) {
-              // Usar o valor numérico da linha SUBTOTAL
-              console.log('→ SUBTOTAL encontrado:', cellValue);
               break;
             }
           }
@@ -126,7 +116,6 @@ export default function ImportarExcel() {
             const cellValue = row[j];
             if (typeof cellValue === 'number' && cellValue > 0) {
               parsed.freightUSD = cellValue;
-              console.log('→ FREIGHT encontrado:', cellValue);
               break;
             }
           }
@@ -137,7 +126,6 @@ export default function ImportarExcel() {
           for (let j = 0; j < row.length; j++) {
             const cellValue = row[j];
             if (typeof cellValue === 'number' && cellValue > 0) {
-              console.log('→ TOTAL INVOICE encontrado:', cellValue);
               break;
             }
           }
@@ -153,8 +141,6 @@ export default function ImportarExcel() {
                             !wholeLine.includes('total');
           
           if (isNotTotal) {
-            console.log('→ Analisando linha produto:', row);
-            
             // Nome do produto: coluna 1 (REF) ou coluna 2 (DESCRIPTION)
             let productName = '';
             if (row[1] && typeof row[1] === 'string' && row[1].trim().length > 0) {
@@ -180,32 +166,15 @@ export default function ImportarExcel() {
               // Coluna 11 é o TOTAL (qty x unit price)
               if (typeof row[10] === 'number' && row[10] > 0) {
                 product.unitPriceUSD = row[10];
-                console.log('→ Preço unitário:', row[10], 'USD');
               }
 
               if (product.unitPriceUSD > 0) {
                 parsed.products.push(product);
-                console.log('✓ PRODUTO ADICIONADO:', product.name, '| Qtd:', product.quantity, '| Preço Unit:', product.unitPriceUSD, '| Total:', (product.quantity * product.unitPriceUSD).toFixed(2));
-              } else {
-                console.log('✗ Produto descartado (sem preço):', product.name);
               }
             }
           }
         }
       }
-
-      console.log('========== FIM DO PARSING ==========');
-      console.log('Total de produtos:', parsed.products.length);
-      console.log('Frete:', parsed.freightUSD);
-      
-      // Calcular subtotal para verificar
-      const subtotalCalculado = parsed.products.reduce((sum, p) => {
-        const totalProduto = p.quantity * p.unitPriceUSD;
-        console.log(`  ${p.name}: ${p.quantity} x $${p.unitPriceUSD} = $${totalProduto.toFixed(2)}`);
-        return sum + totalProduto;
-      }, 0);
-      console.log('Subtotal calculado:', subtotalCalculado.toFixed(2));
-      console.log('Lista de produtos:', parsed.products);
 
       // Valores padrão
       if (!parsed.exchangeRate) parsed.exchangeRate = 5.46;

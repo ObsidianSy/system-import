@@ -18,108 +18,110 @@ interface IndexDefinition {
   concurrent?: boolean;
 }
 
-// Definição de todos os índices para otimização
+// Definicao de todos os indices para otimizacao
+// IMPORTANTE: Nomes de tabelas e colunas usam camelCase conforme definido no Drizzle schema
+// PostgreSQL requer aspas duplas para identificadores case-sensitive
 const indexes: IndexDefinition[] = [
   // Products - buscas frequentes por SKU e categoria
   {
     name: 'idx_products_sku',
-    table: 'products',
-    columns: ['sku'],
+    table: '"products"',
+    columns: ['"sku"'],
     unique: true,
     concurrent: true,
   },
   {
     name: 'idx_products_category',
-    table: 'products',
-    columns: ['category'],
+    table: '"products"',
+    columns: ['"category"'],
     concurrent: true,
   },
   {
     name: 'idx_products_category_stock',
-    table: 'products',
-    columns: ['category', 'current_stock'],
+    table: '"products"',
+    columns: ['"category"', '"currentStock"'],
     concurrent: true,
   },
-  
+
   // Importations - filtros por fornecedor e status
   {
     name: 'idx_importations_supplier',
-    table: 'importations',
-    columns: ['supplier_id'],
+    table: '"importations"',
+    columns: ['"supplierId"'],
     concurrent: true,
   },
   {
     name: 'idx_importations_status',
-    table: 'importations',
-    columns: ['status'],
+    table: '"importations"',
+    columns: ['"status"'],
     concurrent: true,
   },
   {
     name: 'idx_importations_date',
-    table: 'importations',
-    columns: ['import_date'],
+    table: '"importations"',
+    columns: ['"importDate"'],
     concurrent: true,
   },
-  
+
   // ImportationItems - joins frequentes
   {
     name: 'idx_importation_items_importation',
-    table: 'importation_items',
-    columns: ['importation_id'],
+    table: '"importationItems"',
+    columns: ['"importationId"'],
     concurrent: true,
   },
   {
     name: 'idx_importation_items_product',
-    table: 'importation_items',
-    columns: ['product_id'],
+    table: '"importationItems"',
+    columns: ['"productId"'],
     concurrent: true,
   },
-  
-  // StockMovements - queries por produto e importação
+
+  // StockMovements - queries por produto e importacao
   {
     name: 'idx_stock_movements_product',
-    table: 'stock_movements',
-    columns: ['product_id'],
+    table: '"stockMovements"',
+    columns: ['"productId"'],
     concurrent: true,
   },
   {
     name: 'idx_stock_movements_importation',
-    table: 'stock_movements',
-    columns: ['importation_id'],
+    table: '"stockMovements"',
+    columns: ['"importationId"'],
     concurrent: true,
   },
   {
     name: 'idx_stock_movements_date',
-    table: 'stock_movements',
-    columns: ['movement_date'],
+    table: '"stockMovements"',
+    columns: ['"createdAt"'],
     concurrent: true,
   },
-  
+
   // Orders - filtros por status e data
   {
     name: 'idx_orders_status',
-    table: 'orders',
-    columns: ['status'],
+    table: '"orders"',
+    columns: ['"status"'],
     concurrent: true,
   },
   {
-    name: 'idx_orders_date',
-    table: 'orders',
-    columns: ['order_date'],
+    name: 'idx_orders_user',
+    table: '"orders"',
+    columns: ['"userId"'],
     concurrent: true,
   },
-  
+
   // OrderItems - joins
   {
     name: 'idx_order_items_order',
-    table: 'order_items',
-    columns: ['order_id'],
+    table: '"orderItems"',
+    columns: ['"orderId"'],
     concurrent: true,
   },
   {
     name: 'idx_order_items_product',
-    table: 'order_items',
-    columns: ['product_id'],
+    table: '"orderItems"',
+    columns: ['"productId"'],
     concurrent: true,
   },
 ];

@@ -26,6 +26,15 @@ export default function Home() {
 
   const recentActivity = recentImportations?.slice(0, 6) || [];
 
+  // Calcular variacao percentual mensal do investimento
+  const monthlyChange = useMemo(() => {
+    if (!stats?.monthlyStats || stats.monthlyStats.length < 2) return null;
+    const current = stats.monthlyStats[stats.monthlyStats.length - 1]?.total ?? 0;
+    const previous = stats.monthlyStats[stats.monthlyStats.length - 2]?.total ?? 0;
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  }, [stats?.monthlyStats]);
+
   // Identificar produtos com alto e baixo estoque
   const highStockProducts = useMemo(() => {
     if (!products) return [];
@@ -109,9 +118,11 @@ export default function Home() {
                   <div className="text-xl font-bold">
                     {formatCurrency(stats?.totalInvestedBRL || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    +20.1% em relação ao mês anterior
-                  </p>
+                  {monthlyChange !== null && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {monthlyChange >= 0 ? "+" : ""}{monthlyChange.toFixed(1)}% em relacao ao mes anterior
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -32,6 +32,11 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
+export type ImportationItemWithProduct = ImportationItem & {
+  sku: string | null;
+  imageUrl: string | null;
+};
+
 let _db: ReturnType<typeof drizzle> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
@@ -99,8 +104,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    // PostgreSQL upsert syntax - cast values to any to bypass strict type checking
-    await db.insert(users).values(values as any).onConflictDoUpdate({
+    await db.insert(users).values(values as InsertUser).onConflictDoUpdate({
       target: users.id,
       set: updateSet,
     });
@@ -421,7 +425,7 @@ export async function deleteImportationItem(id: string): Promise<void> {
   await db.delete(importationItems).where(eq(importationItems.id, id));
 }
 
-export async function getImportationItems(importationId: string): Promise<ImportationItem[]> {
+export async function getImportationItems(importationId: string): Promise<ImportationItemWithProduct[]> {
   const db = await getDb();
   if (!db) return [];
 
@@ -448,6 +452,35 @@ export async function getImportationItems(importationId: string): Promise<Import
     .from(importationItems)
     .leftJoin(products, eq(importationItems.productId, products.id))
     .where(eq(importationItems.importationId, importationId))
+    .orderBy(products.sku);
+}
+
+export async function getAllImportationItems(): Promise<ImportationItemWithProduct[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: importationItems.id,
+      importationId: importationItems.importationId,
+      productId: importationItems.productId,
+      productName: importationItems.productName,
+      productDescription: importationItems.productDescription,
+      supplierProductCode: importationItems.supplierProductCode,
+      color: importationItems.color,
+      size: importationItems.size,
+      quantity: importationItems.quantity,
+      unitPriceUSD: importationItems.unitPriceUSD,
+      totalUSD: importationItems.totalUSD,
+      unitCostBRL: importationItems.unitCostBRL,
+      totalCostBRL: importationItems.totalCostBRL,
+      createdAt: importationItems.createdAt,
+      updatedAt: importationItems.updatedAt,
+      sku: products.sku,
+      imageUrl: products.imageUrl,
+    })
+    .from(importationItems)
+    .leftJoin(products, eq(importationItems.productId, products.id))
     .orderBy(products.sku);
 }
 
@@ -486,7 +519,7 @@ export async function updateOrder(id: string, data: Partial<InsertOrder>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(orders).set(data as any).where(eq(orders.id, id));
+  await db.update(orders).set({ ...data, updatedAt: new Date() }).where(eq(orders.id, id));
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   return result[0]!;
 }
@@ -508,7 +541,7 @@ export async function addOrderItem(item: InsertOrderItem): Promise<OrderItem> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.insert(orderItems).values(item as any);
+  await db.insert(orderItems).values(item);
   const result = await db.select().from(orderItems).where(eq(orderItems.id, item.id!)).limit(1);
   return result[0]!;
 }
@@ -550,10 +583,10 @@ export async function importOrderToImportation(orderId: string): Promise<Importa
 
   // Create importation minimal with subtotal and no taxes yet
   const importationId = randomBytes(16).toString("hex");
-  const subtotalUSD = items.reduce((sum, it:any) => sum + (it.subtotalUSD ?? 0), 0);
+  const subtotalUSD = items.reduce((sum, it) => sum + (it.subtotalUSD ?? 0), 0);
   await db.insert(importations).values({
     id: importationId,
-    supplierId: order.supplierId,
+    supplierId: order.supplierId || "",
     invoiceNumber: `Pedido ${orderId}`,
     importDate: new Date(),
     status: "pending",

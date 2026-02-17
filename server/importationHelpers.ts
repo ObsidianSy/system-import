@@ -15,77 +15,72 @@ export async function processImportationDelivery(importationId: string): Promise
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Buscar a importação
-  const [importation] = await db
-    .select()
-    .from(importations)
-    .where(eq(importations.id, importationId))
-    .limit(1);
-
-  if (!importation) {
-    throw new Error("Importação não encontrada");
-  }
-
-  // Buscar os itens da importação
-  const items = await db
-    .select()
-    .from(importationItems)
-    .where(eq(importationItems.importationId, importationId));
-
-  // Processar cada item
-  for (const item of items) {
-    if (!item.productId) continue; // Pular itens sem produto vinculado
-
-    // Buscar o produto atual
-    const [product] = await db
+  await db.transaction(async (tx) => {
+    const [importation] = await tx
       .select()
-      .from(products)
-      .where(eq(products.id, item.productId))
+      .from(importations)
+      .where(eq(importations.id, importationId))
       .limit(1);
 
-    if (!product) continue;
+    if (!importation) {
+      throw new Error("Importacao nao encontrada");
+    }
 
-    const previousStock = product.currentStock;
-    const newStock = previousStock + item.quantity;
-    const previousAverageCost = product.averageCostBRL;
-    const previousAverageCostUSD = product.averageCostUSD;
+    const items = await tx
+      .select()
+      .from(importationItems)
+      .where(eq(importationItems.importationId, importationId));
 
-    // SOLUÇÃO SIMPLES: Custo médio = Custo unitário da última importação entregue
-    const averageCostBRL = item.unitCostBRL;
-    const averageCostUSD = item.unitPriceUSD;
+    for (const item of items) {
+      if (!item.productId) continue;
 
-    // Atualizar o produto
-    await db
-      .update(products)
-      .set({
-        currentStock: newStock,
-        averageCostBRL,
-        averageCostUSD,
-        lastImportUnitPriceUSD: item.unitPriceUSD,
-        updatedAt: new Date(),
-      })
-      .where(eq(products.id, item.productId));
+      const [product] = await tx
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
 
-    // Registrar movimentação de estoque com histórico de custo médio
-    await db.insert(stockMovements).values({
-      id: generateId(),
-      productId: item.productId,
-      importationId: importationId,
-      movementType: "import",
-      quantity: item.quantity,
-      previousStock,
-      newStock,
-      previousAverageCostBRL: previousAverageCost,
-      newAverageCostBRL: averageCostBRL,
-      previousAverageCostUSD: previousAverageCostUSD,
-      newAverageCostUSD: averageCostUSD,
-      unitCostBRL: item.unitCostBRL,
-      unitCostUSD: item.unitPriceUSD,
-      reference: importation.invoiceNumber || `Importação ${importationId}`,
-      notes: `Entrada de estoque - Importação ${importation.invoiceNumber || importationId}`,
-      createdAt: new Date(),
-    });
-  }
+      if (!product) continue;
+
+      const previousStock = product.currentStock;
+      const newStock = previousStock + item.quantity;
+      const previousAverageCost = product.averageCostBRL;
+      const previousAverageCostUSD = product.averageCostUSD;
+
+      const averageCostBRL = item.unitCostBRL;
+      const averageCostUSD = item.unitPriceUSD;
+
+      await tx
+        .update(products)
+        .set({
+          currentStock: newStock,
+          averageCostBRL,
+          averageCostUSD,
+          lastImportUnitPriceUSD: item.unitPriceUSD,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.id, item.productId));
+
+      await tx.insert(stockMovements).values({
+        id: generateId(),
+        productId: item.productId,
+        importationId: importationId,
+        movementType: "import",
+        quantity: item.quantity,
+        previousStock,
+        newStock,
+        previousAverageCostBRL: previousAverageCost,
+        newAverageCostBRL: averageCostBRL,
+        previousAverageCostUSD: previousAverageCostUSD,
+        newAverageCostUSD: averageCostUSD,
+        unitCostBRL: item.unitCostBRL,
+        unitCostUSD: item.unitPriceUSD,
+        reference: importation.invoiceNumber || `Importacao ${importationId}`,
+        notes: `Entrada de estoque - Importacao ${importation.invoiceNumber || importationId}`,
+        createdAt: new Date(),
+      });
+    }
+  });
 }
 
 /**
@@ -95,64 +90,60 @@ export async function revertImportationDelivery(importationId: string): Promise<
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Buscar movimentações relacionadas a esta importação
-  const movements = await db
-    .select()
-    .from(stockMovements)
-    .where(
-      and(
-        eq(stockMovements.importationId, importationId),
-        eq(stockMovements.movementType, "import")
-      )
-    );
-
-  // Reverter cada movimentação
-  for (const movement of movements) {
-    const [product] = await db
+  await db.transaction(async (tx) => {
+    const movements = await tx
       .select()
-      .from(products)
-      .where(eq(products.id, movement.productId))
-      .limit(1);
+      .from(stockMovements)
+      .where(
+        and(
+          eq(stockMovements.importationId, importationId),
+          eq(stockMovements.movementType, "import")
+        )
+      );
 
-    if (!product) continue;
+    for (const movement of movements) {
+      const [product] = await tx
+        .select()
+        .from(products)
+        .where(eq(products.id, movement.productId))
+        .limit(1);
 
-    const newStock = product.currentStock - movement.quantity;
-    
-    // Restore previous average costs from the movement record
-    const restoredAverageCostBRL = movement.previousAverageCostBRL;
-    const restoredAverageCostUSD = movement.previousAverageCostUSD;
+      if (!product) continue;
 
-    // Recalcular custo médio (voltar ao custo anterior se possível)
-    await db
-      .update(products)
-      .set({
-        currentStock: Math.max(0, newStock),
-        averageCostBRL: restoredAverageCostBRL,
-        averageCostUSD: restoredAverageCostUSD,
-        updatedAt: new Date(),
-      })
-      .where(eq(products.id, movement.productId));
+      const newStock = product.currentStock - movement.quantity;
+      const restoredAverageCostBRL = movement.previousAverageCostBRL;
+      const restoredAverageCostUSD = movement.previousAverageCostUSD;
 
-    // Registrar movimentação de ajuste
-    await db.insert(stockMovements).values({
-      id: generateId(),
-      productId: movement.productId,
-      importationId: importationId,
-      movementType: "adjustment",
-      quantity: -movement.quantity,
-      previousStock: product.currentStock,
-      newStock: Math.max(0, newStock),
-      previousAverageCostBRL: product.averageCostBRL,
-      newAverageCostBRL: restoredAverageCostBRL,
-      previousAverageCostUSD: product.averageCostUSD,
-      newAverageCostUSD: restoredAverageCostUSD,
-      unitCostBRL: 0,
-      unitCostUSD: 0,
-      reference: `Reversão de importação`,
-      notes: `Reversão de entrada - Importação ${importationId}`,
-      createdAt: new Date(),
-    });
-  }
+      await tx
+        .update(products)
+        .set({
+          currentStock: Math.max(0, newStock),
+          averageCostBRL: restoredAverageCostBRL,
+          averageCostUSD: restoredAverageCostUSD,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.id, movement.productId));
+
+      await tx.insert(stockMovements).values({
+        id: generateId(),
+        productId: movement.productId,
+        importationId: importationId,
+        movementType: "adjustment",
+        quantity: -movement.quantity,
+        previousStock: product.currentStock,
+        newStock: Math.max(0, newStock),
+        previousAverageCostBRL: product.averageCostBRL,
+        newAverageCostBRL: restoredAverageCostBRL,
+        previousAverageCostUSD: product.averageCostUSD,
+        newAverageCostUSD: restoredAverageCostUSD,
+        unitCostBRL: 0,
+        unitCostUSD: 0,
+        reference: `Reversao de importacao`,
+        notes: `Reversao de entrada - Importacao ${importationId}`,
+        createdAt: new Date(),
+      });
+    }
+  });
 }
 
 /**

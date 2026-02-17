@@ -111,7 +111,6 @@ export default function EditarImportacaoCompleta() {
   };
 
   const handleItemChange = (index: number, field: string, value: string) => {
-    console.log('handleItemChange:', { index, field, value, totalItems: items.length });
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
@@ -119,7 +118,6 @@ export default function EditarImportacaoCompleta() {
     if (field === "productId" && value) {
       const product = products?.find(p => p.id === value);
       if (product) {
-        console.log('Produto encontrado:', product);
         newItems[index].productName = product.name;
         newItems[index].supplierProductCode = product.supplierProductCode || "";
         if (product.lastImportUnitPriceUSD) {
@@ -445,13 +443,13 @@ export default function EditarImportacaoCompleta() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-16 h-9 text-[10px] p-2">Foto</TableHead>
-                      <TableHead className="text-[10px] p-2 w-[180px]">SKU / Produto</TableHead>
-                      <TableHead className="text-center w-16 h-9 text-[10px] p-2">Qtd</TableHead>
-                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Preço Unit.<br/>(USD)</TableHead>
-                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Total<br/>(USD)</TableHead>
-                      <TableHead className="text-right w-24 h-9 text-[10px] p-2">Custo Unit.<br/>(BRL)</TableHead>
-                      <TableHead className="text-right w-28 h-9 text-[10px] p-2">Custo Total<br/>(BRL)</TableHead>
+                      <TableHead className="w-20 h-9 text-[10px] p-2">Foto</TableHead>
+                      <TableHead className="text-[10px] p-2 min-w-[200px]">SKU / Produto</TableHead>
+                      <TableHead className="text-center w-24 h-9 text-[10px] p-2">Qtd</TableHead>
+                      <TableHead className="text-right w-28 h-9 text-[10px] p-2">Preço Unit.<br/>(USD)</TableHead>
+                      <TableHead className="text-right w-28 h-9 text-[10px] p-2">Total<br/>(USD)</TableHead>
+                      <TableHead className="text-right w-28 h-9 text-[10px] p-2">Custo Unit.<br/>(BRL)</TableHead>
+                      <TableHead className="text-right w-32 h-9 text-[10px] p-2">Custo Total<br/>(BRL)</TableHead>
                       <TableHead className="w-10 h-9 p-2"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -464,13 +462,13 @@ export default function EditarImportacaoCompleta() {
                         <TableRow key={index} className="group">
                           <TableCell className="p-2">
                             {selectedProduct?.imageUrl ? (
-                              <img 
-                                src={selectedProduct.imageUrl} 
+                              <img
+                                src={selectedProduct.imageUrl}
                                 alt={item.productName}
-                                className="w-14 h-14 object-cover rounded border"
+                                className="w-16 h-16 object-cover rounded border"
                               />
                             ) : (
-                              <div className="w-14 h-14 bg-muted rounded flex items-center justify-center border">
+                              <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border">
                                 <Package className="h-6 w-6 text-muted-foreground" />
                               </div>
                             )}
@@ -480,7 +478,7 @@ export default function EditarImportacaoCompleta() {
                               value={item.productId}
                               onValueChange={(value) => handleItemChange(index, "productId", value)}
                             >
-                              <SelectTrigger className="h-7 text-[11px] w-full max-w-[170px]">
+                              <SelectTrigger className="h-7 text-[11px] w-full">
                                 <SelectValue placeholder="Selecionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -492,13 +490,13 @@ export default function EditarImportacaoCompleta() {
                               </SelectContent>
                             </Select>
                             {selectedProduct && (
-                              <div className="mt-0.5 space-y-0 max-w-[170px]">
+                              <div className="mt-0.5 space-y-0">
                                 {selectedProduct.sku && (
-                                  <div className="text-[10px] font-semibold text-muted-foreground leading-tight truncate">
+                                  <div className="text-[10px] font-semibold text-muted-foreground leading-tight">
                                     {selectedProduct.sku}
                                   </div>
                                 )}
-                                <div className="text-[10px] text-foreground leading-tight truncate">
+                                <div className="text-[10px] text-foreground leading-tight line-clamp-2">
                                   {selectedProduct.name}
                                 </div>
                               </div>
@@ -509,7 +507,7 @@ export default function EditarImportacaoCompleta() {
                               type="number"
                               value={item.quantity}
                               onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                              className="h-7 text-sm text-center font-semibold w-14 mx-auto"
+                              className="h-7 text-sm text-center font-semibold w-20 mx-auto"
                               min="1"
                             />
                           </TableCell>
@@ -519,7 +517,7 @@ export default function EditarImportacaoCompleta() {
                               step="0.01"
                               value={item.unitPriceUSD}
                               onChange={(e) => handleItemChange(index, "unitPriceUSD", e.target.value)}
-                              className="h-7 text-[11px] text-right w-20 ml-auto"
+                              className="h-7 text-[11px] text-right w-24 ml-auto"
                             />
                           </TableCell>
                           <TableCell className="text-right p-2">

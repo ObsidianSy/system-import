@@ -117,9 +117,9 @@ export type InsertImportation = typeof importations.$inferInsert;
  */
 export const importationItems = pgTable("importationItems", {
   id: text("id").primaryKey(),
-  importationId: text("importationId").notNull(),
-  productId: text("productId"),
-  
+  importationId: text("importationId").notNull().references(() => importations.id, { onDelete: "cascade" }),
+  productId: text("productId").references(() => products.id, { onDelete: "set null" }),
+
   productName: text("productName").notNull(),
   productDescription: text("productDescription"),
   supplierProductCode: text("supplierProductCode"),
@@ -146,8 +146,8 @@ export type InsertImportationItem = typeof importationItems.$inferInsert;
  */
 export const orders = pgTable("orders", {
   id: text("id").primaryKey(),
-  userId: text("userId").notNull(),
-  supplierId: text("supplierId"),
+  userId: text("userId").notNull().references(() => users.id),
+  supplierId: text("supplierId").references(() => suppliers.id, { onDelete: "set null" }),
   freightCostUSD: integer("freightCostUSD").default(0).notNull(),
   status: text("status", { enum: ["pending", "imported"] }).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
@@ -159,8 +159,8 @@ export type InsertOrder = typeof orders.$inferInsert;
 
 export const orderItems = pgTable("orderItems", {
   id: text("id").primaryKey(),
-  orderId: text("orderId").notNull(),
-  productId: text("productId"),
+  orderId: text("orderId").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  productId: text("productId").references(() => products.id, { onDelete: "set null" }),
 
   productName: text("productName").notNull(),
   sku: text("sku"),
@@ -182,8 +182,8 @@ export type InsertOrderItem = typeof orderItems.$inferInsert;
  */
 export const stockMovements = pgTable("stockMovements", {
   id: text("id").primaryKey(),
-  productId: text("productId").notNull(),
-  importationId: text("importationId"),
+  productId: text("productId").notNull().references(() => products.id),
+  importationId: text("importationId").references(() => importations.id, { onDelete: "set null" }),
   
   movementType: text("movementType", { enum: ["import", "sale", "adjustment", "return"] }).notNull(),
   quantity: integer("quantity").notNull(),

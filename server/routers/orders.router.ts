@@ -14,7 +14,7 @@ export const ordersRouter = router({
   }),
 
   addItem: protectedProcedure
-    .input(z.object({ orderId: z.string(), productId: z.string().optional(), quantity: z.number().optional(), unitPriceUSD: z.number().optional() }))
+    .input(z.object({ orderId: z.string(), productId: z.string().optional(), quantity: z.number().int().min(1).optional(), unitPriceUSD: z.number().min(0).optional() }))
     .mutation(async ({ input, ctx }) => {
       const itemId = generateId();
       const { productId, quantity = 1, unitPriceUSD = 0 } = input;
@@ -35,7 +35,7 @@ export const ordersRouter = router({
     }),
 
   updateItem: protectedProcedure
-    .input(z.object({ id: z.string(), quantity: z.number().optional(), unitPriceUSD: z.number().optional() }))
+    .input(z.object({ id: z.string(), quantity: z.number().int().min(1).optional(), unitPriceUSD: z.number().min(0).optional() }))
     .mutation(async ({ input }) => {
       const data: Record<string, unknown> = {};
       if (input.quantity !== undefined) data.quantity = input.quantity;
@@ -68,7 +68,7 @@ export const ordersRouter = router({
     }),
 
   updateFreight: protectedProcedure
-    .input(z.object({ orderId: z.string(), freightCostUSD: z.number() }))
+    .input(z.object({ orderId: z.string(), freightCostUSD: z.number().min(0) }))
     .mutation(async ({ input }) => {
       await db.updateOrder(input.orderId, { freightCostUSD: input.freightCostUSD });
       return { success: true };

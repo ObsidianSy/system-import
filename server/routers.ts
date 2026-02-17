@@ -15,8 +15,9 @@ import { importationsRouter } from "./routers/importations.router";
 import { stockRouter } from "./routers/stock.router";
 import { dashboardRouter } from "./routers/dashboard.router";
 
+import { decimalToCents } from "../shared/utils/currency";
+
 const generateId = () => randomBytes(16).toString("hex");
-const decimalToCents = (decimal: number) => Math.round(decimal * 100);
 
 export const appRouter = router({
   system: systemRouter,
@@ -30,36 +31,26 @@ export const appRouter = router({
         password: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
-        try {
-          console.log(`[Auth] Login attempt for email: ${input.email}`);
-          
           const user = await db.getUserByEmail(input.email);
-          console.log(`[Auth] User found:`, !!user);
-          
+
           if (!user || !user.password) {
-            console.log(`[Auth] Login failed: Invalid credentials`);
             throw new Error("Credenciais inválidas");
           }
-          
+
           if (!user.isActive) {
-            console.log(`[Auth] Login failed: User inactive`);
             throw new Error("Usuário inativo");
           }
-          
+
           const validPassword = await bcrypt.compare(input.password, user.password);
-          console.log(`[Auth] Password valid:`, validPassword);
-          
+
           if (!validPassword) {
-            console.log(`[Auth] Login failed: Invalid password`);
             throw new Error("Credenciais inválidas");
           }
-          
-          // Atualizar último login
+
           await db.updateUser(user.id, { lastSignedIn: new Date() });
-          
-          // Criar JWT token
+
           const secret = new TextEncoder().encode(ENV.cookieSecret);
-          const token = await new SignJWT({ 
+          const token = await new SignJWT({
             userId: user.id,
             email: user.email,
             name: user.name,
@@ -68,14 +59,10 @@ export const appRouter = router({
             .setIssuedAt()
             .setExpirationTime("7d")
             .sign(secret);
-          
-          // Definir cookie
+
           const cookieOptions = getSessionCookieOptions(ctx.req);
           ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
-          
-          console.log(`[Auth] Cookie set: ${COOKIE_NAME}, options:`, cookieOptions);
-          console.log(`[Auth] Login successful for user: ${user.email}`);
-          
+
           return {
             success: true,
             user: {
@@ -85,10 +72,6 @@ export const appRouter = router({
               role: user.role,
             },
           };
-        } catch (error) {
-          console.error(`[Auth] Login error:`, error);
-          throw error;
-        }
       }),
     
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -146,7 +129,7 @@ export const appRouter = router({
           throw new Error("Email já cadastrado");
         }
 
-        const hashedPassword = await bcrypt.hash(input.password, 10);
+        const hashedPassword = await bcrypt.hash(input.password, 12);
 
         // Set permissions based on role
         const permissions = input.role === "admin" ? {

@@ -23,10 +23,6 @@ export default function EditarProduto() {
   const fromPage = searchParams.get('from');
   const previousPath = fromPage === 'galeria' ? '/galeria' : `/produtos/${productId}`;
   
-  console.log('[EditarProduto] URL:', window.location.href);
-  console.log('[EditarProduto] fromPage:', fromPage);
-  console.log('[EditarProduto] previousPath:', previousPath);
-
   const { data: product, isLoading } = trpc.products.get.useQuery(
     { id: productId! },
     { enabled: !!productId }

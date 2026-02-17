@@ -53,10 +53,6 @@ export default function DetalhesProduto() {
   const fromPage = searchParams.get('from');
   const previousPath = fromPage === 'galeria' ? '/galeria' : '/produtos';
   
-  console.log('[DetalhesProduto] URL:', window.location.href);
-  console.log('[DetalhesProduto] fromPage:', fromPage);
-  console.log('[DetalhesProduto] previousPath:', previousPath);
-
   const { data: product, isLoading } = trpc.products.get.useQuery(
     { id: productId! },
     { enabled: !!productId }
@@ -126,7 +122,6 @@ export default function DetalhesProduto() {
       toast.success("Produto deletado com sucesso!");
       utils.products.list.invalidate();
       const returnPath = fromPage === 'galeria' ? '/galeria' : '/produtos';
-      console.log('[DetalhesProduto] Produto deletado, voltando para:', returnPath);
       setLocation(returnPath);
     },
     onError: (error: any) => {
@@ -252,7 +247,6 @@ export default function DetalhesProduto() {
             variant="ghost"
             size="icon"
             onClick={() => {
-              console.log('[DetalhesProduto] Voltando para:', previousPath);
               setLocation(previousPath);
             }}
           >
@@ -274,10 +268,9 @@ export default function DetalhesProduto() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
-              const editUrl = fromPage === 'galeria' 
-                ? `/produtos/${product.id}/editar?from=galeria` 
+              const editUrl = fromPage === 'galeria'
+                ? `/produtos/${product.id}/editar?from=galeria`
                 : `/produtos/${product.id}/editar`;
-              console.log('[DetalhesProduto] Navegando para edição:', editUrl);
               setLocation(editUrl);
             }}>
               <Edit className="h-4 w-4 mr-2" />
