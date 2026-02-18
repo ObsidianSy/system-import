@@ -10,11 +10,11 @@ import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Save, Upload, Trash2, Calculator, Plus, X, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export default function EditarProduto() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const [, params] = useRoute("/produtos/:id/editar");
   const productId = params?.id;
   
@@ -45,6 +45,9 @@ export default function EditarProduto() {
   const [imageUrl, setImageUrl] = useState("");
   const [advertisedChannels, setAdvertisedChannels] = useState<string[]>([]);
   const [newChannel, setNewChannel] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Populate form when data loads
   useEffect(() => {
@@ -66,7 +69,25 @@ export default function EditarProduto() {
   }, [product]);
 
   const updateProduct = trpc.products.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      if (imageFile) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Falha ao ler imagem"));
+            reader.readAsDataURL(imageFile);
+          });
+          const base64Data = base64.split(',')[1];
+          await uploadImage.mutateAsync({
+            productId: productId!,
+            imageData: base64Data,
+            mimeType: imageFile.type,
+          });
+        } catch {
+          toast.error("Produto salvo, mas erro ao enviar imagem");
+        }
+      }
       toast.success("Produto atualizado com sucesso!");
       utils.products.list.invalidate();
       utils.products.get.invalidate({ id: productId! });
@@ -76,6 +97,8 @@ export default function EditarProduto() {
       toast.error("Erro ao atualizar produto: " + error.message);
     },
   });
+
+  const uploadImage = trpc.products.uploadImage.useMutation();
 
   const deleteProduct = trpc.products.delete.useMutation({
     onSuccess: () => {
@@ -91,6 +114,32 @@ export default function EditarProduto() {
   const handleDelete = () => {
     if (window.confirm(`Tem certeza que deseja deletar o produto "${product?.name}"? Esta ação não pode ser desfeita.`)) {
       deleteProduct.mutate({ id: productId! });
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("A imagem deve ter no máximo 5MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setImageUrl("");
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageUrl("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -359,25 +408,74 @@ export default function EditarProduto() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="imageUrl">URL da Imagem</Label>
-              <Input
-                id="imageUrl"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://exemplo.com/imagem.jpg"
-              />
-              {imageUrl && (
-                <div className="mt-2">
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    className="h-32 w-32 object-cover rounded-lg border"
-                    onError={(e) => {
-                      e.currentTarget.src = "https://via.placeholder.com/128?text=Erro";
-                    }}
+              <Label>Imagem do Produto</Label>
+              {(imagePreview || imageUrl) ? (
+                <div className="flex items-start gap-4">
+                  <div className="relative">
+                    <img
+                      src={imagePreview || imageUrl}
+                      alt="Preview"
+                      className="h-32 w-32 object-cover rounded-lg border"
+                      onError={(e) => {
+                        e.currentTarget.src = "https://via.placeholder.com/128?text=Erro";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                      onClick={removeImage}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {imageFile ? `Arquivo: ${imageFile.name}` : "Imagem via URL"}
+                    </p>
+                    {!imageFile && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="h-3 w-3 mr-2" />
+                        Trocar por arquivo
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div
+                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm font-medium">Clique para enviar imagem</p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG até 5MB</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">ou cole uma URL</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <Input
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://exemplo.com/imagem.jpg"
                   />
                 </div>
               )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
             </div>
 
             <div className="pt-4 border-t">
