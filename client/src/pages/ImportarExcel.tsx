@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/PageHeader";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -233,21 +234,19 @@ export default function ImportarExcel() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/importacoes")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Importar do Excel</h1>
-            <p className="text-muted-foreground">
-              Importe dados de fatura comercial a partir de arquivo Excel
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Importar do Excel"
+          description="Importe dados de fatura comercial a partir de arquivo Excel"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/importacoes")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          }
+        />
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Upload de Arquivo */}

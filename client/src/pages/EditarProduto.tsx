@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function EditarProduto() {
   const [, setLocation] = useLocation();
@@ -213,37 +214,35 @@ export default function EditarProduto() {
   return (
     <DashboardLayout>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation(previousPath)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Editar Produto</h1>
-            <p className="text-muted-foreground">
-              Atualize as informações do produto
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              type="button"
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={deleteProduct.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Deletar
-            </Button>
-            <Button type="submit" disabled={updateProduct.isPending}>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar Alterações
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Editar Produto"
+          description="Atualize as informações do produto"
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation(previousPath)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteProduct.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar
+              </Button>
+              <Button type="submit" disabled={updateProduct.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Alterações
+              </Button>
+            </>
+          }
+        />
 
         <Card>
           <CardHeader>

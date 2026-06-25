@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Plus, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function NovoProduto() {
   const [, setLocation] = useLocation();
@@ -130,21 +131,19 @@ export default function NovoProduto() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/produtos")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Novo Produto</h1>
-            <p className="text-muted-foreground">
-              Cadastre um novo produto no catálogo
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Novo Produto"
+          description="Cadastre um novo produto no catálogo"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/produtos")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          }
+        />
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 md:grid-cols-3">

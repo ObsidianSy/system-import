@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/PageHeader";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -51,21 +52,19 @@ export default function NovoFornecedor() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/fornecedores")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Novo Fornecedor</h1>
-            <p className="text-muted-foreground">
-              Cadastre um novo fornecedor/exportador
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Novo Fornecedor"
+          description="Cadastre um novo fornecedor/exportador"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/fornecedores")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          }
+        />
 
         <form onSubmit={handleSubmit}>
           <Card>

@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/PageHeader";
 
 interface ImportItem {
   productId?: string;
@@ -188,22 +189,20 @@ export default function NovaImportacao() {
   return (
     <DashboardLayout>
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setLocation("/importacoes")}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-bold">Nova Importação</h1>
-            <p className="text-[10px] text-muted-foreground">
-              Registre uma nova importação com cálculo automático de custos
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Nova Importação"
+          description="Registre uma nova importação com cálculo automático de custos"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setLocation("/importacoes")}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+          }
+        />
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Dados Básicos */}

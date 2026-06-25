@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Save, Package, CheckCircle, Truck, AlertCircle, XCircle, Edit2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
 import {
   Select,
@@ -142,27 +143,27 @@ export default function EditarImportacao() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation(`/importacoes/${importationId}`)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Gerenciar Status</h1>
-            <p className="text-muted-foreground">
-              Fatura: {importation.invoiceNumber || "Sem número"}
-            </p>
-          </div>
-          <Button
-            onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            Editar Valores e Produtos
-          </Button>
-        </div>
+        <PageHeader
+          title="Gerenciar Status"
+          description={`Fatura: ${importation.invoiceNumber || "Sem número"}`}
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation(`/importacoes/${importationId}`)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Button
+                onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Editar Valores e Produtos
+              </Button>
+            </>
+          }
+        />
 
         {/* Status da Importação */}
         <Card>

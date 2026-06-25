@@ -10,6 +10,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function EditarFornecedor() {
   const [, setLocation] = useLocation();
@@ -107,26 +108,26 @@ export default function EditarFornecedor() {
   return (
     <DashboardLayout>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation(`/fornecedores/${supplierId}`)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Editar Fornecedor</h1>
-            <p className="text-muted-foreground">
-              Atualize as informações do fornecedor
-            </p>
-          </div>
-          <Button type="submit" disabled={updateSupplier.isPending}>
-            <Save className="h-4 w-4 mr-2" />
-            Salvar Alterações
-          </Button>
-        </div>
+        <PageHeader
+          title="Editar Fornecedor"
+          description="Atualize as informações do fornecedor"
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation(`/fornecedores/${supplierId}`)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Button type="submit" disabled={updateSupplier.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Alterações
+              </Button>
+            </>
+          }
+        />
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="md:col-span-2">

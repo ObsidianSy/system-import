@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Save, Plus, Trash2, Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import {
@@ -246,66 +247,66 @@ export default function EditarImportacaoCompleta() {
   return (
     <DashboardLayout>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Header com Totais */}
-        <div className="flex items-start gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 mt-1"
-            onClick={() => setLocation(`/importacoes/${importationId}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold mb-1">Editar Valores e Produtos</h1>
-            <p className="text-xs text-muted-foreground">
-              Altere quantidades, preços, impostos, frete e produtos
-            </p>
-            
-            {/* Totais no Header */}
-            <div className="grid grid-cols-3 gap-3 mt-3">
-              <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                <CardContent className="p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Total USD</p>
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    ${totals.totalUSD.toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {formatCurrency(totals.totalBRL)} • Frete: ${(parseFloat(freightUSD) || 0).toFixed(2)}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
-                <CardContent className="p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Impostos</p>
-                  <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(totals.importTax + totals.icms)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    II {importTaxRate}% + ICMS {icmsRate}%
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-                <CardContent className="p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Custo Total</p>
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(totals.totalCostBRL)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0)} unidades • {items.length} produto{items.length !== 1 ? 's' : ''}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          <Button type="submit" disabled={updateImportation.isPending} size="sm" className="mt-1">
-            <Save className="h-4 w-4 mr-2" />
-            Salvar Alterações
-          </Button>
+        {/* Header */}
+        <PageHeader
+          title="Editar Valores e Produtos"
+          description="Altere quantidades, preços, impostos, frete e produtos"
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setLocation(`/importacoes/${importationId}`)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Button type="submit" disabled={updateImportation.isPending} size="sm">
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Alterações
+              </Button>
+            </>
+          }
+        />
+
+        {/* Totais */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground uppercase mb-1">Total USD</p>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                ${totals.totalUSD.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {formatCurrency(totals.totalBRL)} • Frete: ${(parseFloat(freightUSD) || 0).toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+            <CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground uppercase mb-1">Impostos</p>
+              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                {formatCurrency(totals.importTax + totals.icms)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                II {importTaxRate}% + ICMS {icmsRate}%
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+            <CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground uppercase mb-1">Custo Total</p>
+              <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(totals.totalCostBRL)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0)} unidades • {items.length} produto{items.length !== 1 ? 's' : ''}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Informações Básicas */}
