@@ -24,6 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 
 export default function Estoque() {
   const { data: products, isLoading } = trpc.products.list.useQuery();
@@ -114,55 +116,16 @@ export default function Estoque() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Controle de Estoque</h1>
-          <p className="text-muted-foreground">
-            Acompanhe os níveis de estoque de todos os produtos
-          </p>
-        </div>
+        <PageHeader
+          title="Controle de Estoque"
+          description="Acompanhe os níveis de estoque de todos os produtos"
+        />
 
         {/* Cards de Resumo */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalProducts || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                Produtos cadastrados
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unidades em Estoque</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalStock || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                Total de unidades
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Baixo</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">
-                {stats?.lowStockProducts || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Produtos abaixo do mínimo
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard label="Total de Produtos" value={stats?.totalProducts || 0} icon={Package} />
+          <StatCard label="Unidades em Estoque" value={stats?.totalStock || 0} icon={TrendingUp} />
+          <StatCard label="Estoque Baixo" value={stats?.lowStockProducts || 0} icon={AlertTriangle} tone="danger" />
         </div>
 
         {/* Produtos com Estoque Baixo - Sempre visível se houver */}

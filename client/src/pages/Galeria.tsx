@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -512,64 +513,64 @@ export default function Galeria() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header Minimalista */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Galeria de Produtos</h1>
-            <p className="text-sm text-muted-foreground">
+        <PageHeader
+          title="Galeria de Produtos"
+          description={
+            <>
               {filteredProducts?.length || 0} de {products?.length || 0} produtos • {products?.filter(p => {
                 const realStock = p.sku ? getStock(p.sku, p.currentStock) : p.currentStock;
                 return realStock > 0;
               }).length || 0} em estoque
-            </p>
-          </div>
-          
-          {/* Ações e Controles */}
-          <div className="flex items-center gap-2">
-            {currentOrder?.items && currentOrder.items.length > 0 && (
+            </>
+          }
+          actions={
+            <>
+              {currentOrder?.items && currentOrder.items.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation('/pedidos')}
+                  className="gap-2"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  <span className="font-semibold">{currentOrder.items.length}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {currentOrder.items.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={() => setLocation('/pedidos')}
-                className="gap-2"
+                variant="default"
+                size="sm"
+                onClick={printCatalog}
               >
-                <ShoppingCart className="h-4 w-4" />
-                <span className="font-semibold">{currentOrder.items.length}</span>
-                <span className="text-xs text-muted-foreground">
-                  {currentOrder.items.length === 1 ? 'item' : 'itens'}
-                </span>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir catálogo
               </Button>
-            )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={printCatalog}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir catálogo
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button
-              variant={gridSize === "4" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setGridSize("4")}
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={gridSize === "6" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setGridSize("6")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={gridSize === "8" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setGridSize("8")}
-            >
-              <Package className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
+              <div className="w-px h-6 bg-border mx-1" />
+              <Button
+                variant={gridSize === "4" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setGridSize("4")}
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={gridSize === "6" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setGridSize("6")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={gridSize === "8" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setGridSize("8")}
+              >
+                <Package className="h-3 w-3" />
+              </Button>
+            </>
+          }
+        />
 
         {/* Barra de Ações em Lote */}
         {selectedProducts.size > 0 && (

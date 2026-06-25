@@ -43,6 +43,7 @@ import { UserPlus, Edit, Trash2, Shield, User, Search, Filter, X } from "lucide-
 import { format } from "date-fns";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Usuarios() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -152,74 +153,72 @@ export default function Usuarios() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Gerenciar Usuários</h1>
-            <p className="text-muted-foreground">
-              Crie e gerencie contas de usuários do sistema
-            </p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Novo Usuário
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar Novo Usuário</DialogTitle>
-                <DialogDescription>
-                  Preencha os dados do novo usuário
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-name">Nome</Label>
-                  <Input id="create-name" name="name" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-email">Email</Label>
-                  <Input id="create-email" name="email" type="email" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-password">Senha</Label>
-                  <Input
-                    id="create-password"
-                    name="password"
-                    type="password"
-                    minLength={6}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-role">Função</Label>
-                  <Select name="role" defaultValue="user">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Usuário</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Criando..." : "Criar"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <PageHeader
+          title="Gerenciar Usuários"
+          description="Crie e gerencie contas de usuários do sistema"
+          actions={
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Novo Usuário
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Usuário</DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados do novo usuário
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreate} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-name">Nome</Label>
+                    <Input id="create-name" name="name" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-email">Email</Label>
+                    <Input id="create-email" name="email" type="email" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-password">Senha</Label>
+                    <Input
+                      id="create-password"
+                      name="password"
+                      type="password"
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-role">Função</Label>
+                    <Select name="role" defaultValue="user">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Usuário</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={createMutation.isPending}>
+                      {createMutation.isPending ? "Criando..." : "Criar"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <Card>
           <CardHeader>

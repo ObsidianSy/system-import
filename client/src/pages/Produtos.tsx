@@ -8,6 +8,8 @@ import { formatCurrency } from "@/lib/currency";
 import { Plus, Package, AlertTriangle, Filter, X, Search, Grid3x3, List, MoreVertical, Edit, Trash2, Eye, EyeOff, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { useExternalStock } from "@/_core/hooks/useExternalStock";
@@ -256,124 +258,64 @@ export default function Produtos() {
     <DashboardLayout>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Produtos</h1>
-            <p className="text-xs text-muted-foreground">
-              {filteredProducts.length} de {products?.length || 0} produtos • {stats.lowStock} estoque baixo • {stats.outOfStock} sem estoque
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {currentOrder?.items && currentOrder.items.length > 0 && (
+        <PageHeader
+          title="Produtos"
+          description={`${filteredProducts.length} de ${products?.length || 0} produtos • ${stats.lowStock} estoque baixo • ${stats.outOfStock} sem estoque`}
+          actions={
+            <>
+              {currentOrder?.items && currentOrder.items.length > 0 && (
+                <Button variant="outline" onClick={() => setLocation('/pedidos')} className="gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  <span className="font-semibold">{currentOrder.items.length}</span>
+                </Button>
+              )}
               <Button
                 variant="outline"
-                onClick={() => setLocation('/pedidos')}
-                className="gap-2"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                <span className="font-semibold">{currentOrder.items.length}</span>
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setViewMode("grid")}
-              className={viewMode === "grid" ? "bg-primary text-primary-foreground" : ""}
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setViewMode("list")}
-              className={viewMode === "list" ? "bg-primary text-primary-foreground" : ""}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            {canViewCostBRL && viewMode === "list" && (
-              <Button
-                variant={showAverageCost ? "default" : "outline"}
                 size="icon"
-                onClick={() => setShowAverageCost(!showAverageCost)}
-                title={showAverageCost ? "Ocultar Custo Médio" : "Mostrar Custo Médio"}
+                onClick={() => setViewMode("grid")}
+                className={viewMode === "grid" ? "bg-primary text-primary-foreground" : ""}
               >
-                {showAverageCost ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                <Grid3x3 className="h-4 w-4" />
               </Button>
-            )}
-            <Button 
-              onClick={() => setLocation("/produtos/novo")}
-              disabled={!canEditProducts}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Produto
-            </Button>
-          </div>
-        </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setViewMode("list")}
+                className={viewMode === "list" ? "bg-primary text-primary-foreground" : ""}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              {canViewCostBRL && viewMode === "list" && (
+                <Button
+                  variant={showAverageCost ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => setShowAverageCost(!showAverageCost)}
+                  title={showAverageCost ? "Ocultar Custo Médio" : "Mostrar Custo Médio"}
+                >
+                  {showAverageCost ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </Button>
+              )}
+              <Button onClick={() => setLocation("/produtos/novo")} disabled={!canEditProducts}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Produto
+              </Button>
+            </>
+          }
+        />
 
         {/* Cards de Estatísticas */}
         <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <Card>
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Produtos</p>
-                  <p className="text-lg font-bold mt-0.5">{stats.total}</p>
-                </div>
-                <Package className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Unidades</p>
-                  <p className="text-lg font-bold mt-0.5">{stats.totalUnits}</p>
-                </div>
-                <Package className="h-5 w-5 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Est. Baixo</p>
-                  <p className="text-lg font-bold text-yellow-600 mt-0.5">{stats.lowStock}</p>
-                </div>
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Sem Est.</p>
-                  <p className="text-lg font-bold text-red-600 mt-0.5">{stats.outOfStock}</p>
-                </div>
-                <TrendingDown className="h-5 w-5 text-red-600" />
-              </div>
-            </CardContent>
-          </Card>
-
+          <StatCard label="Produtos" value={stats.total} icon={Package} />
+          <StatCard label="Unidades" value={stats.totalUnits} icon={Package} tone="info" />
+          <StatCard label="Est. Baixo" value={stats.lowStock} icon={AlertTriangle} tone="warning" />
+          <StatCard label="Sem Est." value={stats.outOfStock} icon={TrendingDown} tone="danger" />
           {canViewCostBRL && (
-            <Card>
-              <CardContent className="p-2.5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Valor</p>
-                    <p className="text-sm font-bold text-green-600 mt-0.5">
-                      {formatCurrency(stats.totalValue)}
-                  </p>
-                </div>
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+            <StatCard
+              label="Valor"
+              value={formatCurrency(stats.totalValue)}
+              icon={TrendingUp}
+              tone="success"
+            />
           )}
         </div>
 

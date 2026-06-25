@@ -2,6 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Mail, Phone, MapPin, User, Edit, Building } from "lucide-react";
@@ -98,63 +100,33 @@ export default function DetalhesFornecedor() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">{supplier.name}</h1>
-            {supplier.companyName && (
-              <p className="text-muted-foreground">{supplier.companyName}</p>
-            )}
+          <div className="flex-1 min-w-0">
+            <PageHeader
+              title={supplier.name}
+              description={supplier.companyName || undefined}
+              actions={
+                <Button variant="outline" onClick={() => setLocation(`/fornecedores/${supplier.id}/editar`)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              }
+            />
           </div>
-          <Button variant="outline" onClick={() => setLocation(`/fornecedores/${supplier.id}/editar`)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Button>
         </div>
 
         {/* Cards de Resumo */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Importado</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalImported)}</div>
-              <p className="text-xs text-muted-foreground">
-                Em todas as importações
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Importações</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{supplierImportations.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Total de importações
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {supplierImportations.length > 0 
-                  ? formatCurrency(totalImported / supplierImportations.length)
-                  : formatCurrency(0)
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Valor médio por importação
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard label="Total Importado" value={formatCurrency(totalImported)} icon={Building} />
+          <StatCard label="Importações" value={supplierImportations.length} icon={Building} />
+          <StatCard
+            label="Ticket Médio"
+            value={
+              supplierImportations.length > 0
+                ? formatCurrency(totalImported / supplierImportations.length)
+                : formatCurrency(0)
+            }
+            icon={Building}
+          />
         </div>
 
         {/* Informações de Contato */}

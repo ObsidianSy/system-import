@@ -108,7 +108,10 @@ async function startServer() {
   
   logInfo('🌐 Configuring static files');
   
-  const port = parseInt(process.env.PORT || "3000");
+  // Dev usa 3235 por padrão; produção mantém 3000 (ou PORT injetado pela plataforma).
+  const port = parseInt(
+    process.env.PORT || (process.env.NODE_ENV === "development" ? "3235" : "3000")
+  );
   
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
@@ -121,7 +124,7 @@ async function startServer() {
     
     logInfo(`🎯 Starting development server on port ${port}`);
     server.listen(port, "0.0.0.0", () => {
-      logInfo(`✅ Server running on http://localhost:${port}/`);
+      logInfo(`✅ Frontend + API rodando juntos em http://localhost:${port}/`);
       logInfo(`✅ Server is ready and accepting connections`);
     });
   } else {

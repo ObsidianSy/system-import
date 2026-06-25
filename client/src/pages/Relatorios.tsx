@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/PageHeader";
 import { DollarSign, TrendingUp, Package, Calendar, Filter, X, Percent, Truck, Scale, PieChart as PieChartIcon, BarChart as BarChartIcon, TrendingDown, AlertCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -247,44 +248,41 @@ export default function Relatorios() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Relatórios</h1>
-            <p className="text-muted-foreground">
-              {canViewCostBRL ? "Análises detalhadas de estoque e importações" : "Métricas de produtos e desempenho de vendas"}
-            </p>
-          </div>
-          
-          {canViewCostBRL && (
-            <div className="flex items-end gap-2 bg-card p-2 rounded-lg border shadow-sm">
-            <div className="grid gap-1.5">
-              <Label htmlFor="start-date" className="text-xs">Data Inicial</Label>
-              <Input 
-                id="start-date" 
-                type="date" 
-                className="h-8 w-[140px]" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="end-date" className="text-xs">Data Final</Label>
-              <Input 
-                id="end-date" 
-                type="date" 
-                className="h-8 w-[140px]" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            {(startDate || endDate) && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearFilters} title="Limpar filtros">
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          )}
-        </div>
+        <PageHeader
+          title="Relatórios"
+          description={canViewCostBRL ? "Análises detalhadas de estoque e importações" : "Métricas de produtos e desempenho de vendas"}
+          actions={
+            canViewCostBRL ? (
+              <div className="flex items-end gap-2 bg-card p-2 rounded-lg border shadow-sm">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="start-date" className="text-xs">Data Inicial</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    className="h-8 w-[140px]"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="end-date" className="text-xs">Data Final</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    className="h-8 w-[140px]"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearFilters} title="Limpar filtros">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
 
         {/* Resumo Executivo - Duas Colunas */}
         {canViewCostBRL && (

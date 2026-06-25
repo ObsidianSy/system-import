@@ -17,6 +17,8 @@ import {
 import { Search, ArrowLeft, Package, TrendingUp, TrendingDown, Trophy, Filter, X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 
 export default function VendasExternas() {
   const [, setLocation] = useLocation();
@@ -79,21 +81,19 @@ export default function VendasExternas() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/home")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Vendas Externas</h1>
-            <p className="text-muted-foreground">
-              Performance de vendas do sistema externo
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Vendas Externas"
+          description="Performance de vendas do sistema externo"
+          actions={
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/home")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          }
+        />
 
         {/* Summary Cards */}
         {isLoading ? (
@@ -104,44 +104,9 @@ export default function VendasExternas() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Vendas (30 dias)</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totals.total30d}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de unidades vendidas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Histórico</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totals.totalUnits}</div>
-                <p className="text-xs text-muted-foreground">
-                  Todas as vendas registradas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Estoque Médio</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totals.avgStock}</div>
-                <p className="text-xs text-muted-foreground">
-                  Média de unidades em estoque
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard label="Vendas (30 dias)" value={totals.total30d} icon={TrendingUp} />
+            <StatCard label="Total Histórico" value={totals.totalUnits} icon={Package} />
+            <StatCard label="Estoque Médio" value={totals.avgStock} icon={Package} />
           </div>
         )}
 

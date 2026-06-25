@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { Users, ChevronRight } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Configuracoes() {
   const [, setLocation] = useLocation();
@@ -54,12 +55,10 @@ export default function Configuracoes() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">
-            Configure as taxas de importação e impostos
-          </p>
-        </div>
+        <PageHeader
+          title="Configurações"
+          description="Configure as taxas de importação e impostos"
+        />
 
         {/* Card de Gerenciamento de Usuários (apenas admin) */}
         {isAdmin && (

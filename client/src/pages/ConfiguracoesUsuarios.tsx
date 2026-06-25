@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { ArrowLeft, Shield, User, Eye, EyeOff, UserPlus, Trash2, Pencil } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import {
@@ -206,25 +207,21 @@ export default function ConfiguracoesUsuarios() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setLocation("/configuracoes")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Gerenciar Usuários</h1>
-              <p className="text-sm text-muted-foreground">
-                Controle usuários, permissões e funções do sistema
-              </p>
-            </div>
-          </div>
+        <PageHeader
+          title="Gerenciar Usuários"
+          description="Controle usuários, permissões e funções do sistema"
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setLocation("/configuracoes")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -373,7 +370,9 @@ export default function ConfiguracoesUsuarios() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+            </>
+          }
+        />
 
         <Tabs defaultValue="usuarios" className="w-full">
           <TabsList className="grid w-full grid-cols-3">

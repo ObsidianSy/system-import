@@ -2,6 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Package, DollarSign, TrendingUp, Calendar, Truck, FileText, Edit, Edit2, CheckCircle, Printer } from "lucide-react";
@@ -641,129 +643,92 @@ export default function DetalhesImportacao() {
   return (
     <DashboardLayout>
       <div className="space-y-1.5">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setLocation("/importacoes")}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-lg font-bold">
-                {importation.invoiceNumber || "Importação"}
-              </h1>
+        <PageHeader
+          title={importation.invoiceNumber || "Importação"}
+          description={
+            <span className="flex items-center gap-1.5">
               <Badge variant={statusColors[importation.status]} className="text-[10px] px-1.5 py-0">
                 {statusLabels[importation.status]}
               </Badge>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
               Importado em {formatDate(importation.importDate)}
-            </p>
-          </div>
-          <div className="flex gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={handlePrint}
-            >
-              <Printer className="h-3 w-3 mr-1" />
-              Imprimir
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setLocation(`/importacoes/${importationId}/editar`)}
-              disabled={!canEditImportations}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Gerenciar Status
-            </Button>
-            <Button 
-              size="sm" 
-              className="h-7 text-xs" 
-              onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}
-              disabled={!canEditImportations}
-            >
-              <Edit2 className="h-3 w-3 mr-1" />
-              Editar Valores
-            </Button>
-          </div>
-        </div>
+            </span>
+          }
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setLocation("/importacoes")}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handlePrint}
+              >
+                <Printer className="h-3 w-3 mr-1" />
+                Imprimir
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setLocation(`/importacoes/${importationId}/editar`)}
+                disabled={!canEditImportations}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Gerenciar Status
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setLocation(`/importacoes/${importationId}/editar-completa`)}
+                disabled={!canEditImportations}
+              >
+                <Edit2 className="h-3 w-3 mr-1" />
+                Editar Valores
+              </Button>
+            </>
+          }
+        />
 
         {/* Cards de Resumo */}
         <div className="grid gap-1.5 grid-cols-2 md:grid-cols-4">
           {canViewCostUSD && (
-            <Card>
-              <CardContent className="p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total USD</p>
-                    <p className="text-base font-bold">${importation.totalUSD.toFixed(2)}</p>
-                    <p className="text-[9px] text-muted-foreground truncate">
-                      Prod ${importation.subtotalUSD.toFixed(2)} + Frete ${importation.freightUSD.toFixed(2)}
-                    </p>
-                  </div>
-                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total USD"
+              value={`$${importation.totalUSD.toFixed(2)}`}
+              icon={DollarSign}
+              hint={`Prod $${importation.subtotalUSD.toFixed(2)} + Frete $${importation.freightUSD.toFixed(2)}`}
+            />
           )}
 
           {canViewCostBRL && (
-            <Card>
-              <CardContent className="p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Custo Total BRL</p>
-                    <p className="text-sm font-bold text-green-600">{formatCurrency(importation.totalCostBRL)}</p>
-                    <p className="text-[9px] text-muted-foreground">
-                      Câmbio R$ {importation.exchangeRate.toFixed(2)}
-                    </p>
-                  </div>
-                  <TrendingUp className="h-4 w-4 text-green-600 shrink-0" />
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Custo Total BRL"
+              value={formatCurrency(importation.totalCostBRL)}
+              icon={TrendingUp}
+              tone="success"
+            />
           )}
 
           {canViewImportTaxes && (
-            <Card>
-              <CardContent className="p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Impostos</p>
-                    <p className="text-sm font-bold">
-                      {formatCurrency(importation.importTax + importation.icms)}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground truncate">
-                      II R$ {(importation.importTax/1000).toFixed(1)}k + ICMS R$ {(importation.icms/1000).toFixed(1)}k
-                    </p>
-                  </div>
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Impostos"
+              value={formatCurrency(importation.importTax + importation.icms)}
+              icon={FileText}
+            />
           )}
 
-          <Card>
-            <CardContent className="p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Produtos</p>
-                  <p className="text-base font-bold">{importation.items?.length || 0}</p>
-                  <p className="text-[9px] text-muted-foreground">
-                    {importation.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} unidades
-                  </p>
-                </div>
-                <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            label="Produtos"
+            value={importation.items?.length || 0}
+            icon={Package}
+            hint={`${importation.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0} unidades`}
+          />
         </div>
 
         {/* Informações do Fornecedor e Envio lado a lado */}

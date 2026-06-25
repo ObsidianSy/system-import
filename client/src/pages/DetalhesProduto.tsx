@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
 import { StockBadge, StockDisplay } from "@/components/ui/stock-badge";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, calculateSalePrice } from "@/lib/currency";
@@ -252,38 +253,42 @@ export default function DetalhesProduto() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-              {isLowStock && (
-                <Badge variant="destructive" className="gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Estoque Baixo
-                </Badge>
-              )}
-            </div>
-            {product.description && (
-              <p className="text-muted-foreground mt-1">{product.description}</p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {
-              const editUrl = fromPage === 'galeria'
-                ? `/produtos/${product.id}/editar?from=galeria`
-                : `/produtos/${product.id}/editar`;
-              setLocation(editUrl);
-            }}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={deleteProduct.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Deletar
-            </Button>
+          <div className="flex-1 min-w-0">
+            <PageHeader
+              title={product.name}
+              description={
+                <span className="flex items-center gap-2">
+                  {product.description && <span className="truncate">{product.description}</span>}
+                  {isLowStock && (
+                    <Badge variant="destructive" className="gap-1 shrink-0">
+                      <AlertTriangle className="h-3 w-3" />
+                      Estoque Baixo
+                    </Badge>
+                  )}
+                </span>
+              }
+              actions={
+                <>
+                  <Button variant="outline" onClick={() => {
+                    const editUrl = fromPage === 'galeria'
+                      ? `/produtos/${product.id}/editar?from=galeria`
+                      : `/produtos/${product.id}/editar`;
+                    setLocation(editUrl);
+                  }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={deleteProduct.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar
+                  </Button>
+                </>
+              }
+            />
           </div>
         </div>
 

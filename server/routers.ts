@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
 import { externalSalesService } from "./services/externalSales";
-import { authenticateViaOwlflow } from "./services/owlflowAuth";
+import { authenticateViaOwlflow, authenticateViaOwlflowGoogle } from "./services/owlflowAuth";
 import { productsRouter } from "./routers/products.router";
 import { ordersRouter } from "./routers/orders.router";
 import { importationsRouter } from "./routers/importations.router";
@@ -17,8 +17,31 @@ import { stockRouter } from "./routers/stock.router";
 import { dashboardRouter } from "./routers/dashboard.router";
 
 import { decimalToCents } from "../shared/utils/currency";
+import type { Request, Response } from "express";
+import type { User } from "../drizzle/schema";
 
 const generateId = () => randomBytes(16).toString("hex");
+
+/**
+ * Emite o cookie de sessão httpOnly próprio (jose HS256, 7d). Usado tanto pelo
+ * login por senha quanto pelo login via Google — ambos passam pelo owlflow e
+ * resolvem o mesmo usuário local. name garantido como string: o SDK exige name
+ * no payload para validar o cookie nas próximas requisições.
+ */
+async function issueSessionCookie(req: Request, res: Response, user: User): Promise<void> {
+  const secret = new TextEncoder().encode(ENV.cookieSecret);
+  const token = await new SignJWT({
+    userId: user.id,
+    email: user.email,
+    name: user.name ?? user.email,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(secret);
+
+  res.cookie(COOKIE_NAME, token, getSessionCookieOptions(req));
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -39,21 +62,8 @@ export const appRouter = router({
           await db.updateUser(user.id, { lastSignedIn: new Date() });
 
           // Emite o cookie de sessão PRÓPRIO (mantém o modelo httpOnly atual; o
-          // owlflow só valida credenciais). name garantido como string — o SDK
-          // exige name no payload para validar o cookie nas próximas requisições.
-          const secret = new TextEncoder().encode(ENV.cookieSecret);
-          const token = await new SignJWT({
-            userId: user.id,
-            email: user.email,
-            name: user.name ?? user.email,
-          })
-            .setProtectedHeader({ alg: "HS256" })
-            .setIssuedAt()
-            .setExpirationTime("7d")
-            .sign(secret);
-
-          const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
+          // owlflow só valida credenciais).
+          await issueSessionCookie(ctx.req, ctx.res, user);
 
           return {
             success: true,
@@ -65,7 +75,31 @@ export const appRouter = router({
             },
           };
       }),
-    
+
+    loginWithGoogle: publicProcedure
+      .input(z.object({
+        accessToken: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+          // Troca o access_token do Google pelo accessToken do owlflow (proxy) e
+          // resolve o usuário local pela MESMA allowlist do login por senha.
+          const user = await authenticateViaOwlflowGoogle(input.accessToken);
+
+          await db.updateUser(user.id, { lastSignedIn: new Date() });
+
+          await issueSessionCookie(ctx.req, ctx.res, user);
+
+          return {
+            success: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+            },
+          };
+      }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

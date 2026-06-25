@@ -1,6 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { trpc } from "@/lib/trpc";
 import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock, ListPlus, Printer } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -670,33 +672,31 @@ export default function Importacoes() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Importações</h1>
-            <p className="text-xs text-muted-foreground">
-              Gerencie todas as suas importações
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setLocation("/importacoes/importar-excel")}
-              disabled={!canEditImportations}
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Importar Excel
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => setLocation("/importacoes/nova")}
-              disabled={!canEditImportations}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Importação
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Importações"
+          description="Gerencie todas as suas importações"
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/importacoes/importar-excel")}
+                disabled={!canEditImportations}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Importar Excel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setLocation("/importacoes/nova")}
+                disabled={!canEditImportations}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Importação
+              </Button>
+            </>
+          }
+        />
 
         {/* Cards de Estatísticas */}
         {isLoading ? (
@@ -708,64 +708,22 @@ export default function Importacoes() {
         ) : (
           <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
             {canViewCostUSD && (
-              <Card>
-                <CardContent className="p-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Total USD</p>
-                      <p className="text-lg font-bold mt-0.5">
-                        ${stats.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    <DollarSign className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Total USD"
+                value={`$${stats.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                icon={DollarSign}
+              />
             )}
-
             {canViewCostBRL && (
-              <Card>
-                <CardContent className="p-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Total BRL</p>
-                      <p className="text-sm font-bold text-green-600 mt-0.5">
-                        {formatCurrency(stats.totalBRL)}
-                      </p>
-                    </div>
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Total BRL"
+                value={formatCurrency(stats.totalBRL)}
+                icon={TrendingUp}
+                tone="success"
+              />
             )}
-
-            <Card>
-              <CardContent className="p-2.5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Importações</p>
-                    <p className="text-lg font-bold mt-0.5">
-                      {stats.totalImports}
-                    </p>
-                  </div>
-                  <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-2.5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Em Andamento</p>
-                    <p className="text-lg font-bold text-blue-600 mt-0.5">
-                      {stats.activeImports}
-                    </p>
-                  </div>
-                  <Clock className="h-5 w-5 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard label="Importações" value={stats.totalImports} icon={ShoppingCart} />
+            <StatCard label="Em Andamento" value={stats.activeImports} icon={Clock} tone="info" />
           </div>
         )}
 

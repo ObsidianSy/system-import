@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import {
@@ -76,32 +77,30 @@ export default function Fornecedores() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Fornecedores</h1>
-            <p className="text-muted-foreground">
-              Gerencie seus fornecedores e exportadores
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2">
-                  {[searchTerm, countryFilter !== "all"].filter(Boolean).length}
-                </Badge>
-              )}
-            </Button>
-            <Button onClick={() => setLocation("/fornecedores/novo")}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Fornecedor
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Fornecedores"
+          description="Gerencie seus fornecedores e exportadores"
+          actions={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filtros
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="ml-2">
+                    {[searchTerm, countryFilter !== "all"].filter(Boolean).length}
+                  </Badge>
+                )}
+              </Button>
+              <Button onClick={() => setLocation("/fornecedores/novo")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Fornecedor
+              </Button>
+            </>
+          }
+        />
 
         {/* Painel de Filtros */}
         {showFilters && (

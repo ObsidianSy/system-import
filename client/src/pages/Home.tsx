@@ -1,5 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { trpc } from "@/lib/trpc";
 import { Package, TrendingUp, FileText, DollarSign, AlertTriangle, Activity, ShoppingCart, Users, Eye, TrendingDown, Megaphone, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,12 +72,7 @@ export default function Home() {
     <DashboardLayout>
       <div className="space-y-4">
         {/* Header compacto */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-xs text-muted-foreground">Visão geral do negócio</p>
-          </div>
-        </div>
+        <PageHeader title="Dashboard" description="Visão geral do negócio" />
 
         {/* Ações Rápidas - No topo */}
         <div className="flex items-center gap-2">
@@ -107,94 +104,46 @@ export default function Home() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             {canViewCostBRL && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                  <CardTitle className="text-xs font-medium">
-                    Total Investido
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  <div className="text-xl font-bold">
-                    {formatCurrency(stats?.totalInvestedBRL || 0)}
-                  </div>
-                  {monthlyChange !== null && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {monthlyChange >= 0 ? "+" : ""}{monthlyChange.toFixed(1)}% em relacao ao mes anterior
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Total Investido"
+                value={formatCurrency(stats?.totalInvestedBRL || 0)}
+                icon={DollarSign}
+                hint={
+                  monthlyChange !== null
+                    ? `${monthlyChange >= 0 ? "+" : ""}${monthlyChange.toFixed(1)}% em relação ao mês anterior`
+                    : undefined
+                }
+              />
             )}
-
             {canViewCostBRL && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                  <CardTitle className="text-xs font-medium">
-                    Importações Ativas
-                  </CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  <div className="text-xl font-bold">
-                    {(stats?.pendingImportations || 0) + (stats?.inTransitImportations || 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stats?.inTransitImportations || 0} em trânsito
-                  </p>
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Importações Ativas"
+                value={(stats?.pendingImportations || 0) + (stats?.inTransitImportations || 0)}
+                icon={Activity}
+                hint={`${stats?.inTransitImportations || 0} em trânsito`}
+              />
             )}
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                <CardTitle className="text-xs font-medium">
-                  Total em Estoque
-                </CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-xl font-bold">{stats?.totalStock || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.totalProducts || 0} produtos cadastrados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                <CardTitle className="text-xs font-medium">
-                  Alertas de Estoque
-                </CardTitle>
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-xl font-bold text-destructive">
-                  {stats?.lowStockProducts || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Produtos abaixo do mínimo
-                </p>
-              </CardContent>
-            </Card>
-
+            <StatCard
+              label="Total em Estoque"
+              value={stats?.totalStock || 0}
+              icon={Package}
+              hint={`${stats?.totalProducts || 0} produtos cadastrados`}
+            />
+            <StatCard
+              label="Alertas de Estoque"
+              value={stats?.lowStockProducts || 0}
+              icon={AlertTriangle}
+              tone="danger"
+              hint="Produtos abaixo do mínimo"
+            />
             {!canViewCostBRL && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 pt-3 px-3">
-                  <CardTitle className="text-xs font-medium">
-                    Alto Estoque
-                  </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  <div className="text-xl font-bold text-blue-600">
-                    {highStockProducts.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Otimizar anúncios
-                  </p>
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Alto Estoque"
+                value={highStockProducts.length}
+                icon={TrendingUp}
+                tone="info"
+                hint="Otimizar anúncios"
+              />
             )}
           </div>
         )}

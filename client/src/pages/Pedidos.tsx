@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
 
 export default function Pedidos() {
@@ -231,12 +232,10 @@ export default function Pedidos() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pedidos de Compra</h1>
-            <p className="text-muted-foreground">Crie pedidos para enviar aos seus fornecedores</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Pedidos de Compra"
+          description="Crie pedidos para enviar aos seus fornecedores"
+        />
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Coluna da Esquerda: Formulário de Adição */}
