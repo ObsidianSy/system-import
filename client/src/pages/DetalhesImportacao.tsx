@@ -610,7 +610,7 @@ export default function DetalhesImportacao() {
       <DashboardLayout>
         <div className="space-y-1.5">
           <Skeleton className="h-10 w-64" />
-          <div className="grid gap-1.5 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-16" />
             ))}
@@ -688,7 +688,7 @@ export default function DetalhesImportacao() {
         />
 
         {/* Cards de Resumo */}
-        <div className="grid gap-1.5 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {canViewCostUSD && (
             <StatCard
               label="Total USD"

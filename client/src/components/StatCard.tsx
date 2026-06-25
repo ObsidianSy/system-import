@@ -1,12 +1,12 @@
 import { type ReactNode } from "react";
 import { type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 /**
- * Tons semânticos de métrica. Centraliza as cores de status que hoje estão
- * hardcoded e espalhadas pelas páginas (text-green-600, text-yellow-600, ...).
- * Fonte única de verdade — mudar a cor de "perigo" muda em todo o sistema.
+ * Tons semânticos de métrica. Centraliza as cores de status (antes hardcoded e
+ * espalhadas pelas páginas). Fonte única de verdade.
  */
 export type StatTone = "default" | "info" | "success" | "warning" | "danger";
 
@@ -27,37 +27,59 @@ const toneIcon: Record<StatTone, string> = {
 };
 
 interface StatCardProps {
-  /** Rótulo curto (label, 12px maiúsculo). */
+  /** Rótulo da métrica. */
   label: string;
-  /** Valor da métrica (número/moeda). Renderiza com `tabular-nums`. */
+  /** Valor em destaque (número/moeda). */
   value: ReactNode;
-  /** Ícone Lucide à direita. */
-  icon: LucideIcon;
+  /** Ícone Lucide discreto (opcional). */
+  icon?: LucideIcon;
   /** Cor semântica do valor + ícone. */
   tone?: StatTone;
-  /** Sub-linha de contexto opcional (ex.: "12 em trânsito", "+5% vs mês anterior"). */
+  /** Sub-linha de contexto (usada quando NÃO há barra de progresso). */
   hint?: ReactNode;
+  /**
+   * 0–100. Quando definido, mostra barra de progresso + percentual.
+   * Use APENAS quando a métrica é proporção de um todo (ex.: estoque baixo /
+   * total de produtos). NÃO invente um limite para números absolutos.
+   */
+  percentage?: number;
+  /** Texto à direita do percentual (ex.: "de 150 produtos"). */
+  limitLabel?: ReactNode;
 }
 
-/**
- * Card de métrica compacto. Substitui os blocos `<Card><CardContent>...` quase
- * idênticos repetidos nas páginas de listagem. Escala de fonte e números
- * tabulares conforme DESIGN.md (label 12px, valor com tabular-nums).
- */
-export function StatCard({ label, value, icon: Icon, tone = "default", hint }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "default",
+  hint,
+  percentage,
+  limitLabel,
+}: StatCardProps) {
+  const hasProgress = typeof percentage === "number";
+  const pct = hasProgress ? Math.min(100, Math.max(0, percentage as number)) : 0;
+
   return (
-    <Card>
-      <CardContent className="p-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground truncate">
-              {label}
-            </p>
-            <p className={cn("text-lg font-bold tabular-nums mt-0.5", toneValue[tone])}>{value}</p>
-            {hint && <p className="text-xs text-muted-foreground mt-0.5 truncate">{hint}</p>}
-          </div>
-          <Icon className={cn("h-5 w-5 shrink-0", toneIcon[tone])} />
+    <Card className="py-4">
+      <CardContent className="px-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          {Icon && <Icon className={cn("h-4 w-4 shrink-0", toneIcon[tone])} />}
         </div>
+
+        <p className={cn("mt-1 text-2xl font-semibold tabular-nums", toneValue[tone])}>{value}</p>
+
+        {hasProgress ? (
+          <>
+            <Progress value={pct} className="mt-3 h-2" />
+            <div className="mt-2 flex items-center justify-between text-xs">
+              <span className="font-medium tabular-nums text-primary">{pct.toFixed(1)}%</span>
+              {limitLabel && <span className="text-muted-foreground">{limitLabel}</span>}
+            </div>
+          </>
+        ) : (
+          hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        )}
       </CardContent>
     </Card>
   );

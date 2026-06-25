@@ -241,9 +241,9 @@ export default function Produtos() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <Skeleton className="h-10 w-64" />
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             {[...Array(5)].map((_, i) => (
               <Skeleton key={i} className="h-16" />
             ))}
@@ -257,7 +257,7 @@ export default function Produtos() {
   return (
     <>
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Header */}
         <PageHeader
           title="Produtos"
@@ -305,11 +305,25 @@ export default function Produtos() {
         />
 
         {/* Cards de Estatísticas */}
-        <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           <StatCard label="Produtos" value={stats.total} icon={Package} />
           <StatCard label="Unidades" value={stats.totalUnits} icon={Package} tone="info" />
-          <StatCard label="Est. Baixo" value={stats.lowStock} icon={AlertTriangle} tone="warning" />
-          <StatCard label="Sem Est." value={stats.outOfStock} icon={TrendingDown} tone="danger" />
+          <StatCard
+            label="Est. Baixo"
+            value={stats.lowStock}
+            icon={AlertTriangle}
+            tone="warning"
+            percentage={stats.total ? (stats.lowStock / stats.total) * 100 : 0}
+            limitLabel={`de ${stats.total} produtos`}
+          />
+          <StatCard
+            label="Sem Est."
+            value={stats.outOfStock}
+            icon={TrendingDown}
+            tone="danger"
+            percentage={stats.total ? (stats.outOfStock / stats.total) * 100 : 0}
+            limitLabel={`de ${stats.total}`}
+          />
           {canViewCostBRL && (
             <StatCard
               label="Valor"
@@ -321,7 +335,7 @@ export default function Produtos() {
         </div>
 
         {/* Filtros e Busca - Inline sem Card */}
-        <div className="flex flex-col lg:flex-row gap-2">
+        <div className="flex flex-col lg:flex-row gap-3">
           {/* Busca */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

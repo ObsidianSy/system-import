@@ -695,13 +695,13 @@ export default function Importacoes() {
 
         {/* Cards de Estatísticas */}
         {isLoading ? (
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-16 rounded-xl" />
             ))}
           </div>
         ) : (
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {canViewCostUSD && (
               <StatCard
                 label="Total USD"
@@ -718,7 +718,14 @@ export default function Importacoes() {
               />
             )}
             <StatCard label="Importações" value={stats.totalImports} icon={ShoppingCart} />
-            <StatCard label="Em Andamento" value={stats.activeImports} icon={Clock} tone="info" />
+            <StatCard
+              label="Em Andamento"
+              value={stats.activeImports}
+              icon={Clock}
+              tone="info"
+              percentage={stats.totalImports ? (stats.activeImports / stats.totalImports) * 100 : 0}
+              limitLabel={`de ${stats.totalImports}`}
+            />
           </div>
         )}
 
