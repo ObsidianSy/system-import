@@ -16,6 +16,13 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Frontend build: o Vite embute as envs VITE_* no bundle em build time.
+# O EasyPanel passa GOOGLE_CLIENT_ID como build arg; aceitamos VITE_GOOGLE_CLIENT_ID
+# (preferido) com fallback para o GOOGLE_CLIENT_ID já configurado no painel.
+ARG VITE_GOOGLE_CLIENT_ID
+ARG GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-$GOOGLE_CLIENT_ID}
+
 # Build the application
 RUN pnpm build
 
