@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
 import { externalSalesService } from "./services/externalSales";
+import { authenticateViaOwlflow } from "./services/owlflowAuth";
 import { productsRouter } from "./routers/products.router";
 import { ordersRouter } from "./routers/orders.router";
 import { importationsRouter } from "./routers/importations.router";
@@ -31,29 +32,20 @@ export const appRouter = router({
         password: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
-          const user = await db.getUserByEmail(input.email);
-
-          if (!user || !user.password) {
-            throw new Error("Credenciais inválidas");
-          }
-
-          if (!user.isActive) {
-            throw new Error("Usuário inativo");
-          }
-
-          const validPassword = await bcrypt.compare(input.password, user.password);
-
-          if (!validPassword) {
-            throw new Error("Credenciais inválidas");
-          }
+          // Autentica no auth.owlflow (proxy) e resolve o usuário local pela
+          // allowlist. Lança TRPCError (UNAUTHORIZED / FORBIDDEN / 500) conforme o caso.
+          const user = await authenticateViaOwlflow(input.email, input.password);
 
           await db.updateUser(user.id, { lastSignedIn: new Date() });
 
+          // Emite o cookie de sessão PRÓPRIO (mantém o modelo httpOnly atual; o
+          // owlflow só valida credenciais). name garantido como string — o SDK
+          // exige name no payload para validar o cookie nas próximas requisições.
           const secret = new TextEncoder().encode(ENV.cookieSecret);
           const token = await new SignJWT({
             userId: user.id,
             email: user.email,
-            name: user.name,
+            name: user.name ?? user.email,
           })
             .setProtectedHeader({ alg: "HS256" })
             .setIssuedAt()
@@ -105,7 +97,7 @@ export const appRouter = router({
       .input(z.object({
         name: z.string(),
         email: z.string().email(),
-        password: z.string().min(6),
+        password: z.string().min(6).optional(),
         role: z.enum(["user", "admin"]).default("user"),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -123,13 +115,16 @@ export const appRouter = router({
           input.role = "admin";
         }
 
-        // Verificar se email já existe
-        const existing = await db.getUserByEmail(input.email);
+        // Verificar se email já existe (case-insensitive)
+        const email = input.email.toLowerCase().trim();
+        const existing = await db.getUserByEmailInsensitive(email);
         if (existing) {
           throw new Error("Email já cadastrado");
         }
 
-        const hashedPassword = await bcrypt.hash(input.password, 12);
+        // Senha opcional: usuários da allowlist autenticam pelo auth.owlflow.
+        // Só gera hash local se uma senha for informada (ex.: bootstrap legado).
+        const hashedPassword = input.password ? await bcrypt.hash(input.password, 12) : null;
 
         // Set permissions based on role
         const permissions = input.role === "admin" ? {
@@ -151,10 +146,10 @@ export const appRouter = router({
         return db.createUser({
           id: generateId(),
           name: input.name,
-          email: input.email,
+          email,
           password: hashedPassword,
           role: input.role,
-          loginMethod: "password",
+          loginMethod: hashedPassword ? "password" : "owlflow",
           isActive: true,
           ...permissions,
         });

@@ -22,4 +22,11 @@ export const ENV = {
   databaseUrl: requiredEnvVars.DATABASE_URL!,
   isProduction: process.env.NODE_ENV === "production",
   port: parseInt(process.env.PORT || "3000"),
+  // auth.owlflow (login centralizado). Opcionais no boot — o serviço valida
+  // presença e dá erro claro se faltarem; assim o servidor sobe mesmo sem elas.
+  authOwlflow: {
+    url: process.env.AUTH_OWLFLOW_URL || "",
+    clientId: process.env.AUTH_OWLFLOW_CLIENT_ID || "",
+    clientSecret: process.env.AUTH_OWLFLOW_CLIENT_SECRET || "",
+  },
 };

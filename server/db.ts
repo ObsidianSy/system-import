@@ -137,6 +137,32 @@ export async function getUserByEmail(email: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserByAuthId(authId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user by authId: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.authId, authId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmailInsensitive(email: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user by email (ci): database not available");
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function listUsers() {
   const db = await getDb();
   if (!db) return [];

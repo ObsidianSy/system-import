@@ -7,8 +7,9 @@ export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name"),
   email: text("email").notNull().unique(),
-  password: text("password"), // bcrypt hash
-  loginMethod: text("loginMethod"),
+  password: text("password"), // bcrypt hash (legado/fallback; null para contas só-owlflow)
+  loginMethod: text("loginMethod"), // "local" | "owlflow"
+  authId: text("authId").unique(), // ID do usuário no auth.owlflow; null até o 1º login linkar por email
   role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   // Permissões

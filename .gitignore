@@ -116,3 +116,20 @@ check-*.ts
 debug-*.ts
 *.test.backup
 *.bak
+
+# Environment & Secrets (AIOX)
+.env.*.local
+*.key
+*.pem
+
+# Dependencies (AIOX)
+node_modules/
+node_modules
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.claude/settings.local.json
+.aiox/install-log.txt
+
+.aiox-core
+.claude
