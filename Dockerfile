@@ -4,7 +4,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.4.1
 
 # Copy package files and patches
 COPY package.json pnpm-lock.yaml ./
@@ -25,7 +25,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.4.1
 
 # Copy package files and patches
 COPY package.json pnpm-lock.yaml ./
