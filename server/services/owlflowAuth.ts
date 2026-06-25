@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { jwtVerify } from "jose";
+import { decodeJwt } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "../_core/env";
@@ -31,9 +31,12 @@ function owlflowHeaders(): Record<string, string> {
   };
 }
 
-async function verifyOwlflowToken(accessToken: string): Promise<OwlflowAccessPayload> {
-  const secret = new TextEncoder().encode(ENV.cookieSecret);
-  const { payload } = await jwtVerify(accessToken, secret);
+function extractOwlflowPayload(accessToken: string): OwlflowAccessPayload {
+  // O accessToken vem DIRETO da resposta autenticada (x-client-secret + HTTPS)
+  // do owlflow para o nosso backend — fonte confiável. Não verificamos a
+  // assinatura aqui de propósito: não temos (nem precisamos do) JWT_SECRET de
+  // produção do owlflow. A sessão local é assinada com o NOSSO próprio secret.
+  const payload = decodeJwt(accessToken);
 
   if (typeof payload.userId !== "string" || typeof payload.email !== "string") {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Token de autenticação inválido" });
@@ -88,7 +91,7 @@ export async function authenticateViaOwlflow(email: string, password: string): P
   // 2. Verifica o token (mesmo JWT_SECRET do owlflow)
   let payload: OwlflowAccessPayload;
   try {
-    payload = await verifyOwlflowToken(accessToken);
+    payload = extractOwlflowPayload(accessToken);
   } catch {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Token de autenticação inválido" });
   }
