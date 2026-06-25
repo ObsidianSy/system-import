@@ -168,7 +168,13 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
  * (e, portanto, o GoogleOAuthProvider está montado no main.tsx). Obtém o
  * access_token do Google e o troca por sessão local via owlflow (proxy backend).
  */
-function GoogleLoginButton({ onError }: { onError: (message: string) => void }) {
+function GoogleLoginButton({
+  onError,
+  remember,
+}: {
+  onError: (message: string) => void;
+  remember: boolean;
+}) {
   const googleMutation = trpc.auth.loginWithGoogle.useMutation({
     onSuccess: () => {
       toast.success("Login realizado com sucesso!");
@@ -181,7 +187,7 @@ function GoogleLoginButton({ onError }: { onError: (message: string) => void }) 
 
   const googleLogin = useGoogleLogin({
     onSuccess: (tokenResponse) => {
-      googleMutation.mutate({ accessToken: tokenResponse.access_token });
+      googleMutation.mutate({ accessToken: tokenResponse.access_token, remember });
     },
     onError: () => onError("Não foi possível conectar com o Google. Tente novamente."),
   });
@@ -206,6 +212,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [mouseX, setMouseX] = useState<number>(0);
   const [mouseY, setMouseY] = useState<number>(0);
@@ -334,7 +341,7 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ email, password, remember });
   };
 
   return (
@@ -754,7 +761,11 @@ export default function Login() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Checkbox id="remember" />
+                <Checkbox
+                  id="remember"
+                  checked={remember}
+                  onCheckedChange={(c) => setRemember(c === true)}
+                />
                 <Label
                   htmlFor="remember"
                   className="text-sm font-normal cursor-pointer"
@@ -792,7 +803,7 @@ export default function Login() {
           {/* Login social via Google (owlflow). Só aparece com VITE_GOOGLE_CLIENT_ID. */}
           {GOOGLE_CLIENT_ID && (
             <div className="mt-6">
-              <GoogleLoginButton onError={setError} />
+              <GoogleLoginButton onError={setError} remember={remember} />
             </div>
           )}
 

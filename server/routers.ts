@@ -28,7 +28,16 @@ const generateId = () => randomBytes(16).toString("hex");
  * resolvem o mesmo usuário local. name garantido como string: o SDK exige name
  * no payload para validar o cookie nas próximas requisições.
  */
-async function issueSessionCookie(req: Request, res: Response, user: User): Promise<void> {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function issueSessionCookie(
+  req: Request,
+  res: Response,
+  user: User,
+  remember = false
+): Promise<void> {
+  // "Lembrar por 30 dias": marcado mantém a sessão por 30 dias; desmarcado, 1 dia.
+  const days = remember ? 30 : 1;
   const secret = new TextEncoder().encode(ENV.cookieSecret);
   const token = await new SignJWT({
     userId: user.id,
@@ -37,10 +46,10 @@ async function issueSessionCookie(req: Request, res: Response, user: User): Prom
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(`${days}d`)
     .sign(secret);
 
-  res.cookie(COOKIE_NAME, token, getSessionCookieOptions(req));
+  res.cookie(COOKIE_NAME, token, getSessionCookieOptions(req, days * DAY_MS));
 }
 
 export const appRouter = router({
@@ -53,6 +62,7 @@ export const appRouter = router({
       .input(z.object({
         email: z.string().email(),
         password: z.string(),
+        remember: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
           // Autentica no auth.owlflow (proxy) e resolve o usuário local pela
@@ -62,8 +72,8 @@ export const appRouter = router({
           await db.updateUser(user.id, { lastSignedIn: new Date() });
 
           // Emite o cookie de sessão PRÓPRIO (mantém o modelo httpOnly atual; o
-          // owlflow só valida credenciais).
-          await issueSessionCookie(ctx.req, ctx.res, user);
+          // owlflow só valida credenciais). "Lembrar" define a duração (30d vs 1d).
+          await issueSessionCookie(ctx.req, ctx.res, user, input.remember ?? false);
 
           return {
             success: true,
@@ -79,6 +89,7 @@ export const appRouter = router({
     loginWithGoogle: publicProcedure
       .input(z.object({
         accessToken: z.string().min(1),
+        remember: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
           // Troca o access_token do Google pelo accessToken do owlflow (proxy) e
@@ -87,7 +98,7 @@ export const appRouter = router({
 
           await db.updateUser(user.id, { lastSignedIn: new Date() });
 
-          await issueSessionCookie(ctx.req, ctx.res, user);
+          await issueSessionCookie(ctx.req, ctx.res, user, input.remember ?? false);
 
           return {
             success: true,
