@@ -19,6 +19,7 @@ import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function VendasExternas() {
   const [, setLocation] = useLocation();
@@ -261,11 +262,14 @@ export default function VendasExternas() {
                 </TableBody>
               </Table>
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                {searchTerm 
-                  ? `Nenhum produto encontrado para "${searchTerm}"`
-                  : "Nenhum dado disponível"}
-              </div>
+              <EmptyState
+                icon={Package}
+                title={
+                  searchTerm
+                    ? `Nenhum produto encontrado para "${searchTerm}"`
+                    : "Nenhum dado disponível"
+                }
+              />
             )}
           </CardContent>
         </Card>

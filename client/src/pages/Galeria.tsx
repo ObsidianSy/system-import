@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -955,24 +956,24 @@ export default function Galeria() {
             })}
           </div>
         ) : (
-          <Card className="p-12">
-            <div className="text-center space-y-3">
-              <Package className="h-12 w-12 mx-auto text-muted-foreground/50" />
-              <div>
-                <h3 className="font-semibold text-lg">Nenhum produto encontrado</h3>
-                <p className="text-muted-foreground text-sm">
-                  {hasActiveFilters
-                    ? "Tente ajustar os filtros"
-                    : "Comece cadastrando seus produtos"}
-                </p>
-              </div>
-              {hasActiveFilters && (
-                <Button onClick={clearFilters} variant="outline">
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
-                </Button>
-              )}
-            </div>
+          <Card>
+            <EmptyState
+              icon={Package}
+              title="Nenhum produto encontrado"
+              description={
+                hasActiveFilters
+                  ? "Tente ajustar os filtros"
+                  : "Comece cadastrando seus produtos"
+              }
+              action={
+                hasActiveFilters ? (
+                  <Button onClick={clearFilters} variant="outline">
+                    <X className="h-4 w-4 mr-2" />
+                    Limpar Filtros
+                  </Button>
+                ) : undefined
+              }
+            />
           </Card>
         )}
       </div>

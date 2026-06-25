@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function Estoque() {
   const { data: products, isLoading } = trpc.products.list.useQuery();
@@ -405,13 +406,11 @@ export default function Estoque() {
                 </TableBody>
               </Table>
             ) : (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum produto encontrado</h3>
-                <p className="text-muted-foreground">
-                  Cadastre produtos para visualizar o estoque
-                </p>
-              </div>
+              <EmptyState
+                icon={Package}
+                title="Nenhum produto encontrado"
+                description="Cadastre produtos para visualizar o estoque"
+              />
             )}
           </CardContent>
         </Card>

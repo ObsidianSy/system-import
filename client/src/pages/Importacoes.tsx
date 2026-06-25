@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { ImportStatusBadge } from "@/components/ImportStatusBadge";
+import { EmptyState } from "@/components/EmptyState";
 import { trpc } from "@/lib/trpc";
 import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock, ListPlus, Printer } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -827,25 +828,27 @@ export default function Importacoes() {
                 </Table>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhuma importação encontrada</h3>
-                <p className="text-muted-foreground mb-4">
-                  {searchTerm || statusFilter !== "all" 
-                    ? "Tente ajustar seus filtros de busca" 
-                    : "Comece criando sua primeira importação"}
-                </p>
-                {searchTerm || statusFilter !== "all" ? (
-                  <Button variant="outline" onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}>
-                    Limpar Filtros
-                  </Button>
-                ) : (
-                  <Button onClick={() => setLocation("/importacoes/nova")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Importação
-                  </Button>
-                )}
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="Nenhuma importação encontrada"
+                description={
+                  searchTerm || statusFilter !== "all"
+                    ? "Tente ajustar seus filtros de busca"
+                    : "Comece criando sua primeira importação"
+                }
+                action={
+                  searchTerm || statusFilter !== "all" ? (
+                    <Button variant="outline" onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}>
+                      Limpar Filtros
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setLocation("/importacoes/nova")}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Importação
+                    </Button>
+                  )
+                }
+              />
             )}
           </CardContent>
         </Card>

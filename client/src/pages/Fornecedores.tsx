@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import {
@@ -212,17 +213,17 @@ export default function Fornecedores() {
                 </TableBody>
               </Table>
             ) : (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum fornecedor encontrado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Comece criando seu primeiro fornecedor
-                </p>
-                <Button onClick={() => setLocation("/fornecedores/novo")}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Fornecedor
-                </Button>
-              </div>
+              <EmptyState
+                icon={Users}
+                title="Nenhum fornecedor encontrado"
+                description="Comece criando seu primeiro fornecedor"
+                action={
+                  <Button onClick={() => setLocation("/fornecedores/novo")}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Fornecedor
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>

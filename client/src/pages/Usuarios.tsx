@@ -44,6 +44,7 @@ import { format } from "date-fns";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function Usuarios() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -489,8 +490,8 @@ export default function Usuarios() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        Nenhum usuário encontrado.
+                      <TableCell colSpan={6} className="p-0">
+                        <EmptyState icon={User} title="Nenhum usuário encontrado." />
                       </TableCell>
                     </TableRow>
                   )}

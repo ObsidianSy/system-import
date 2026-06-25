@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { toast } from "sonner";
 
 export default function Pedidos() {
@@ -530,13 +531,11 @@ export default function Pedidos() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-[300px] text-center border-2 border-dashed rounded-lg">
-                    <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Seu pedido está vazio</h3>
-                    <p className="text-muted-foreground max-w-sm">
-                      Selecione um fornecedor e adicione produtos usando o formulário ao lado.
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={ShoppingCart}
+                    title="Seu pedido está vazio"
+                    description="Selecione um fornecedor e adicione produtos usando o formulário ao lado."
+                  />
                 )}
               </CardContent>
               {items.length > 0 && (

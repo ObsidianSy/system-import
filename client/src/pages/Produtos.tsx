@@ -9,6 +9,7 @@ import { Plus, Package, AlertTriangle, Filter, X, Search, Grid3x3, List, MoreVer
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
@@ -709,27 +710,29 @@ export default function Produtos() {
           )
         ) : (
           <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                {hasActiveFilters ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {hasActiveFilters
-                  ? "Tente ajustar os filtros"
-                  : "Comece criando seu primeiro produto"}
-              </p>
-              {hasActiveFilters ? (
-                <Button onClick={clearFilters} variant="outline">
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
-                </Button>
-              ) : (
-                <Button onClick={() => setLocation("/produtos/novo")}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Produto
-                </Button>
-              )}
+            <CardContent className="p-0">
+              <EmptyState
+                icon={Package}
+                title={hasActiveFilters ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
+                description={
+                  hasActiveFilters
+                    ? "Tente ajustar os filtros"
+                    : "Comece criando seu primeiro produto"
+                }
+                action={
+                  hasActiveFilters ? (
+                    <Button onClick={clearFilters} variant="outline">
+                      <X className="h-4 w-4 mr-2" />
+                      Limpar Filtros
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setLocation("/produtos/novo")}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Produto
+                    </Button>
+                  )
+                }
+              />
             </CardContent>
           </Card>
         )}

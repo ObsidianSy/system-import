@@ -188,6 +188,19 @@ Base: **shadcn/ui "new-york"** com `class-variance-authority` (cva). Variantes s
 ### Data Tables (componente-assinatura)
 Tabelas são o coração do produto (produtos, importações, estoque). Regras: cabeçalho em `label` (12px/500), números **tabular** e alinhados à direita, zebra opcional com `muted`, linha com hover em `accent`, ações em `ghost`/`icon`. Listas com 50+ linhas devem ser virtualizadas.
 
+### Componentes de Domínio (a camada reutilizável — use ANTES de remontar à mão)
+
+Criados na padronização. Toda tela nova deve compor a partir destes, não recriar o layout.
+
+- **`PageHeader`** (`@/components/PageHeader`) — cabeçalho padrão de página.
+  `<PageHeader title="..." description={ReactNode?} actions={<>...botões...</>} />`. Um por tela.
+- **`StatCard`** (`@/components/StatCard`) — card de métrica compacto.
+  `<StatCard label value icon={Lucide} tone? hint? />` · `tone`: `default | info | success | warning | danger` (centraliza as cores de status) · `hint`: sub-linha de contexto · valor com `tabular-nums`.
+- **`ImportStatusBadge`** (`@/components/ImportStatusBadge`) — status de importação (label + cor numa fonte só).
+  `<ImportStatusBadge status="pending | in_transit | customs | delivered | cancelled" />`.
+- **`EmptyState`** (`@/components/EmptyState`) — estado de lista vazia.
+  `<EmptyState icon={Lucide?} title="..." description? action? />`.
+
 ## 6. Do's and Don'ts
 
 ### Do:
