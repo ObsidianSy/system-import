@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
+import { ImportStatusBadge } from "@/components/ImportStatusBadge";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Package, DollarSign, TrendingUp, Calendar, Truck, FileText, Edit, Edit2, CheckCircle, Printer } from "lucide-react";
@@ -36,13 +37,6 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "secondary",
-  in_transit: "default",
-  customs: "outline",
-  delivered: "default",
-  cancelled: "destructive",
-};
 
 export default function DetalhesImportacao() {
   const [, setLocation] = useLocation();
@@ -647,9 +641,7 @@ export default function DetalhesImportacao() {
           title={importation.invoiceNumber || "Importação"}
           description={
             <span className="flex items-center gap-1.5">
-              <Badge variant={statusColors[importation.status]} className="text-[10px] px-1.5 py-0">
-                {statusLabels[importation.status]}
-              </Badge>
+              <ImportStatusBadge status={importation.status} />
               Importado em {formatDate(importation.importDate)}
             </span>
           }

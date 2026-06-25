@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
+import { ImportStatusBadge } from "@/components/ImportStatusBadge";
 import { trpc } from "@/lib/trpc";
 import { Plus, FileText, Package, DollarSign, FileSpreadsheet, Search, Filter, X, TrendingUp, ShoppingCart, Clock, ListPlus, Printer } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -47,13 +48,6 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "secondary",
-  in_transit: "default",
-  customs: "outline",
-  delivered: "default",
-  cancelled: "destructive",
-};
 
 export default function Importacoes() {
   const [, setLocation] = useLocation();
@@ -799,9 +793,7 @@ export default function Importacoes() {
                         </TableCell>
                         <TableCell>{formatDate(importation.importDate)}</TableCell>
                         <TableCell>
-                          <Badge variant={statusColors[importation.status]}>
-                            {statusLabels[importation.status]}
-                          </Badge>
+                          <ImportStatusBadge status={importation.status} />
                         </TableCell>
                         {canViewCostUSD && (
                           <TableCell className="text-right">
